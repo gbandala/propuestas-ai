@@ -1,170 +1,168 @@
-# SaaS Factory V4
+# PropuestasAI
 
-Template production-ready para crear aplicaciones SaaS con desarrollo asistido por IA. Filosofia Agent-First: el usuario dice que quiere, el agente construye todo.
+Generador automatico de materiales de propuesta tecnica y comercial para consultoras de software y agencias de IA. Transforma un formulario de 8 pasos en infografias, presentaciones HTML y documentos listos para entregar al cliente — en menos de 30 minutos.
 
-## Que incluye
+---
 
-- Next.js 16 (App Router) + TypeScript
-- Supabase (Database + Auth + RLS)
-- Tailwind CSS + shadcn/ui
-- 19 Skills de Claude Code (V4 Skills 2.0)
-- Playwright CLI para QA automatizado
-- AI Templates (Vercel AI SDK v5 + OpenRouter)
-- 5 Design Systems listos para usar
-- Arquitectura Feature-First optimizada para IA
-- Auto-Blindaje: el sistema aprende de cada error
+## El Problema
 
-## Quick Start
+Las consultoras y agencias invierten entre **14 y 18 horas-hombre por cada propuesta comercial**:
 
-### 1. Instalar
+- Arquitecto tecnico: 6 horas en analisis y brief tecnico en PPT
+- Gestor comercial: 8 horas en infografias con identidad de marca y propuesta con tarifas
+- Costo promedio: **$340 por propuesta** (sin contar costo de oportunidad)
+- Dolor adicional: quitar marcas de agua de herramientas gratuitas, mantener coherencia de marca
 
-```bash
-npm install
+**PropuestasAI reduce ese tiempo a menos de 30 minutos y el costo a menos de $10 en APIs.**
+
+---
+
+## Quienes lo usan
+
+| Rol | Que hace en la app |
+|-----|--------------------|
+| **Arquitecto Tecnico** | Crea el proyecto, completa el brief tecnico de 8 pasos, genera infografias tecnicas y presentacion tecnica, descarga ZIP tecnico |
+| **Gestor Comercial** | Accede al proyecto cuando la fase tecnica esta completa, completa la propuesta comercial, genera infografias de ROI y roadmap, descarga ZIP comercial |
+| **Administrador** | Configura claves de API (OpenRouter), gestiona usuarios, tiene acceso total a ambas fases |
+
+---
+
+## Que produce
+
+### Flujo Tecnico (Arquitecto)
+1. Completa formulario de 8 pasos (datos del cliente, problema, ROI, funcionalidades, integraciones, presupuesto, stack tecnico, marca)
+2. Sistema genera **brief-tecnico.md** automaticamente
+3. IA genera **3 variantes de infografia tecnica** (Diagrama de Flujo / Arquitectura de Componentes / Timeline de Fases)
+4. Arquitecto selecciona variante y aprueba
+5. Sistema genera **presentacion-tecnica.html** (10 slides con brand identity)
+6. Descarga **ZIP tecnico**: brief + infografias + presentacion
+
+### Flujo Comercial (Gestor — solo si la fase tecnica esta completa)
+7. Completa propuesta comercial: descripcion ejecutiva, tarifas por fase, roadmap
+8. IA genera **4 variantes de infografia comercial** (2 ROI + 2 Roadmap)
+9. Gestor selecciona variantes y aprueba
+10. Sistema genera **presentacion-comercial.html** (10 slides ejecutivos)
+11. Descarga **ZIP comercial** o **ZIP completo** con ambas carpetas
+
+### Estructura del ZIP
 ```
-
-### 2. Variables de Entorno
-
-```bash
-cp .env.example .env.local
-# Editar con credenciales de Supabase
-```
-
-### 3. MCPs (Opcional)
-
-```bash
-cp .claude/example.mcp.json .mcp.json
-# Editar con project ref de Supabase
-```
-
-### 4. Desarrollar
-
-```bash
-npm run dev
-# Auto-detecta puerto disponible (3000-3006)
-```
-
-## Tech Stack
-
-```yaml
-Runtime: Node.js + TypeScript
-Framework: Next.js 16 (App Router)
-Database: PostgreSQL/Supabase
-Styling: Tailwind CSS 3.4
-Components: shadcn/ui
-State: Zustand
-Validation: Zod
-AI Engine: Vercel AI SDK v5 + OpenRouter
-Testing: Playwright CLI + MCP
-Deploy: Vercel
-```
-
-## Arquitectura Feature-First
-
-```
-src/
-├── app/                      # Next.js App Router
-│   ├── (auth)/              # Rutas auth
-│   ├── (main)/              # Rutas principales
-│   └── layout.tsx
-│
-├── features/                 # Organizadas por funcionalidad
-│   └── [feature]/
-│       ├── components/
-│       ├── hooks/
-│       ├── services/
-│       ├── types/
-│       └── store/
-│
-└── shared/                   # Codigo reutilizable
-    ├── components/
-    ├── hooks/
-    ├── lib/
-    └── types/
-```
-
-## Skills (19 total)
-
-### Para el usuario
-
-| Skill | Que hace |
-|-------|----------|
-| `/new-app` | Entrevista de negocio → BUSINESS_LOGIC.md |
-| `/landing` | Landing page de alta conversion |
-| `/add-login` | Auth completo (Email + Google OAuth + profiles + RLS) |
-| `/bucle-agentico` | Implementar features complejas por fases |
-| `/sprint` | Tareas rapidas sin planificacion |
-| `/prp` | Planificar features complejas antes de implementar |
-| `/ai [template]` | Agregar IA: chat, RAG, vision, tools |
-| `/qa` | QA automatizado con Playwright CLI |
-| `/primer` | Inicializar contexto del proyecto |
-| `/update-sf` | Actualizar a ultima version |
-| `/eject-sf` | Remover SaaS Factory (destructivo) |
-| `/skill-creator` | Crear nuevos skills |
-
-### Automaticos (Claude los activa segun la tarea)
-
-backend, frontend, supabase-admin, codebase-analyst, vercel-deployer, documentacion, calidad
-
-## AI Templates
-
-Bloques LEGO para construir features de IA con Vercel AI SDK v5 + OpenRouter:
-
-| Template | Que hace |
-|----------|----------|
-| setup-base | Configuracion inicial |
-| chat | Chat streaming con useChat |
-| web-search | Busqueda con :online |
-| historial | Persistencia en Supabase |
-| vision | Analisis de imagenes |
-| tools | Funciones/herramientas |
-| rag | pgvector + embeddings |
-| single-call | generateText() puntual |
-| structured-outputs | generateObject() con Zod |
-| generative-ui | LLM decide que componente renderizar |
-
-## Design Systems
-
-5 sistemas visuales listos en `.claude/design-systems/`:
-
-- **Liquid Glass** - iOS-like, transparencias
-- **Gradient Mesh** - Degradados fluidos
-- **Neumorphism** - Soft UI, sombras suaves
-- **Bento Grid** - Grids asimetricos
-- **Neobrutalism** - Bold, bordes duros
-
-## Comandos
-
-```bash
-npm run dev          # Desarrollo (auto-port 3000-3006)
-npm run build        # Build produccion
-npm run typecheck    # TypeScript check
-npm run lint         # ESLint
-```
-
-## Deploy
-
-```bash
-# Vercel (recomendado)
-npm install -g vercel
-vercel
-```
-
-Variables en Vercel Dashboard:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-## Estructura .claude/
-
-```
-.claude/
-├── skills/              # 19 Skills (V4 Skills 2.0)
-├── PRPs/                # Product Requirements Proposals
-│   │   └── references/  # AI Templates (11 bloques)
-├── design-systems/      # 5 sistemas de diseno
-├── hooks/               # Scripts en eventos
-└── example.mcp.json     # Config de MCPs
+proyecto-cliente/
+├── tecnica/
+│   ├── brief-tecnico.md
+│   ├── infografia-flujo.png
+│   ├── infografia-arquitectura.png
+│   ├── infografia-timeline.png
+│   └── presentacion-tecnica.html
+└── comercial/
+    ├── propuesta-comercial.md
+    ├── infografia-roi-timeline.png
+    ├── infografia-roi-comparativa.png
+    ├── infografia-roadmap-horizontal.png
+    ├── infografia-roadmap-gantt.png
+    └── presentacion-comercial.html
 ```
 
 ---
 
-**SaaS Factory V4** | Agent-First. Todo es un Skill.
+## Requisitos para funcionar
+
+### Variables de entorno (`.env.local`)
+
+```bash
+# Supabase (base de datos y autenticacion)
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+
+# OpenRouter (generacion de infografias con IA)
+OPENROUTER_API_KEY=sk-or-...
+
+# URL del sitio (para OAuth redirects)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+### Servicios externos necesarios
+
+| Servicio | Para que se usa | Donde obtenerlo |
+|----------|----------------|-----------------|
+| **Supabase** | Base de datos, auth, storage y realtime | supabase.com |
+| **OpenRouter** | Generacion de infografias con Gemini 2.0 Flash | openrouter.ai |
+| **Google OAuth** (opcional) | Login con Google | Se configura en Supabase Dashboard |
+
+---
+
+## Como hacerlo funcionar
+
+### 1. Clonar e instalar
+
+```bash
+git clone https://github.com/gbandala/propuestas-ai.git
+cd propuestas-ai
+npm install
+```
+
+### 2. Configurar variables de entorno
+
+```bash
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
+```
+
+### 3. Configurar Supabase
+
+En tu proyecto de Supabase, ejecutar las migraciones de la carpeta `/supabase/migrations/` o crear las tablas manualmente segun `src/types/database.ts`.
+
+Tablas requeridas: `profiles`, `projects`, `technical_briefs`, `brand_specs`, `infographics`, `presentations`, `commercial_proposals`, `generation_jobs`, `downloads`
+
+### 4. Levantar en desarrollo
+
+```bash
+npm run dev
+# Disponible en http://localhost:3000
+```
+
+### 5. Primer usuario
+
+Al registrarte, tu cuenta se crea con rol `architect` por defecto. Para asignar rol `admin` o `commercial`, actualizar directamente en Supabase Dashboard → tabla `profiles` → columna `role`.
+
+---
+
+## Stack Tecnico
+
+```yaml
+Framework:  Next.js 16 (App Router) + TypeScript
+Database:   Supabase (PostgreSQL + Auth + Storage + Realtime)
+Estilos:    Tailwind CSS 3.4 + shadcn/ui
+Estado:     Zustand
+Validacion: Zod
+IA:         OpenRouter → google/gemini-2.0-flash-exp
+Realtime:   Supabase Realtime (progreso de generacion en vivo)
+Deploy:     Vercel
+```
+
+---
+
+## Deploy en Vercel
+
+```bash
+npm install -g vercel
+vercel
+```
+
+Variables requeridas en Vercel Dashboard:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `OPENROUTER_API_KEY`
+- `NEXT_PUBLIC_SITE_URL` (tu dominio de produccion)
+
+Actualizar tambien en Supabase Dashboard → Authentication → URL Configuration → Site URL con tu dominio de produccion.
+
+---
+
+## Comandos de desarrollo
+
+```bash
+npm run dev          # Servidor de desarrollo
+npm run build        # Build de produccion
+npm run typecheck    # Verificar tipos TypeScript
+npm run lint         # ESLint
+```
