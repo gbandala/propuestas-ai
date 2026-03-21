@@ -23,7 +23,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     .eq('id', user!.id)
     .single()
 
-  const isArchitect = profile?.role === 'architect' || profile?.role === 'admin'
+  const isArchitect = profile?.role === 'architect' || profile?.role === 'admin' || project.user_id === user!.id
   const technicalDone = !!project.technical_completed_at
 
   // Verificar brand identity y storyboard configurados

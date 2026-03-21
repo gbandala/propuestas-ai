@@ -5,7 +5,7 @@ import { generateInfographicImage } from '@/features/infographic-generation/serv
 import { buildTechnicalPrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
 import type { StepData } from '@/features/technical-brief/types'
-import type { BrandSpec } from '@/types/database'
+import type { BrandIdentity } from '@/types/database'
 
 export async function generateTechnicalInfographics(
   projectId: string
@@ -90,7 +90,7 @@ async function generateAndSaveVariant(
   jobId: string,
   stepData: StepData,
   colors: { primary: string; secondary: string; accent: string },
-  brandSpec: BrandSpec | null
+  brandSpec: BrandIdentity | null
 ) {
   try {
     // Marcar como running

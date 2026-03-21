@@ -22,8 +22,7 @@ export interface Project {
   name: string
   client_name: string
   description: string | null
-  architect_id: string
-  commercial_id: string | null
+  user_id: string
   status: ProjectStatus
   technical_completed_at: string | null
   commercial_completed_at: string | null
@@ -37,6 +36,7 @@ export interface TechnicalBrief {
   step_data: Record<string, unknown>
   current_step: number
   generated_at: string | null
+  markdown_content: string | null
   created_at: string
   updated_at: string
 }
@@ -121,7 +121,7 @@ export interface Database {
       projects: {
         Row: Project
         Insert: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'technical_completed_at' | 'commercial_completed_at'>
-        Update: Partial<Omit<Project, 'id' | 'created_at'>>
+        Update: Partial<Omit<Project, 'id' | 'created_at' | 'user_id'>>
       }
       technical_briefs: {
         Row: TechnicalBrief
