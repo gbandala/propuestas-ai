@@ -1,0 +1,7 @@
+{
+  "enabledMcpjsonServers": [
+    "next-devtools",
+    "playwright",
+    "supabase"
+  ]
+}
