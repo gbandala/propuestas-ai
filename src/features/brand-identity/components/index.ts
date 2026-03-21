@@ -1,0 +1,1 @@
+export { BrandIdentityEditor } from './BrandIdentityEditor'

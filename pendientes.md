@@ -5,10 +5,35 @@
 
 ---
 
+## Premisa
+
+El formulario de 8 pasos NO genera el discovery — lo **captura**. El arquitecto ya realizo el analisis previo con el cliente. La app toma esa informacion y produce los materiales visuales.
+
+---
+
 ## Estado General
 
-El proyecto tiene completado el flujo de la **Fase Tecnica** (pasos 1-4 del happy path).
-La **Fase Comercial** y los entregables finales (presentaciones + descarga) estan pendientes.
+```
+Fase Tecnica:
+  [x] Auth + roles
+  [x] Projects CRUD
+  [x] Brand Identity (editor + plantilla base + upload)
+  [x] Technical Brief (8 pasos + generacion MD)
+  [x] Storyboard Draft (UI + actions + skill Claude)
+  [x] Infographic Generation async (Realtime progress)
+  [ ] Presentation Generation (HTML 10 slides)
+
+Fase Comercial:
+  [ ] Commercial Proposal (editor MD + tarifas + roadmap)
+  [ ] Storyboard Comercial (flujo igual al tecnico)
+  [ ] Infografias Comerciales (ROI x2 + Roadmap x2)
+  [ ] Presentation Comercial (HTML 10 slides)
+
+Finalizacion:
+  [ ] Downloads (ZIP tecnico / comercial / completo)
+  [ ] Testing E2E con Playwright
+  [ ] Deploy en Vercel
+```
 
 ---
 
@@ -16,122 +41,140 @@ La **Fase Comercial** y los entregables finales (presentaciones + descarga) esta
 
 ### Infraestructura
 - [x] Supabase configurado (URL + keys en .env.local)
-- [x] Tipos de base de datos definidos (src/types/database.ts) — todas las tablas del BUSINESS_LOGIC
+- [x] Tipos de base de datos actualizados (src/types/database.ts)
+  - Nuevas tablas: `brand_identity`, `storyboards`
+  - Removida tabla legacy `brand_specs`
 - [x] Cliente Supabase (client, server, proxy)
-- [x] Estructura feature-first del proyecto
 
 ### Auth (src/features/auth/)
-- [x] Login con email/password
-- [x] Signup
-- [x] Forgot password / Update password
+- [x] Login / Signup / Forgot password / Update password
 - [x] Google OAuth (callback route)
 - [x] Roles: architect | commercial | admin
-- [x] Proteccion de rutas por rol (commercial bloqueado en /technical)
+- [x] Proteccion de rutas por rol
 
 ### Feature: Projects (src/features/projects/)
 - [x] Dashboard de proyectos (/dashboard)
-- [x] Crear proyecto (modal con nombre, cliente, descripcion)
-- [x] Ver detalle del proyecto (/projects/[id])
-- [x] Status badge (draft / in_progress / completed / archived)
-- [x] Logica de acceso condicional: Fase Comercial bloqueada hasta que Fase Tecnica este completa
-- [x] Store Zustand (projects.store.ts)
+- [x] Crear proyecto (nombre, cliente, descripcion)
+- [x] Detalle del proyecto con flujo de 5 pasos (fase tecnica) + fase comercial
+- [x] Navegacion con estado visual de cada paso (completado / pendiente / bloqueado)
+- [x] Store Zustand
+
+### Feature: Brand Identity (src/features/brand-identity/) — NUEVO
+- [x] Editor Markdown con preview en tiempo real
+- [x] Plantilla base precargada al crear proyecto
+- [x] Upload de archivo .md personalizado
+- [x] Boton "Plantilla base" para resetear
+- [x] Actions: getBrandIdentity, saveBrandIdentity, initBrandIdentity
+- [x] Ruta: /projects/[id]/brand
+- [x] Solo accesible para architect y admin
 
 ### Feature: Technical Brief (src/features/technical-brief/)
-- [x] Formulario multi-paso de 8 pasos:
-  - [x] Step 1: Datos del proyecto (nombre, empresa, arquitecto, fecha)
-  - [x] Step 2: Problema (descripcion + impactos)
-  - [x] Step 3: ROI esperado (KPIs actuales y objetivo)
-  - [x] Step 4: Funcionalidades (tabla con prioridad Must/Should/Could)
-  - [x] Step 5: Integraciones tecnicas
-  - [x] Step 6: Presupuesto (tabla de recursos)
-  - [x] Step 7: Solucion tecnica y stack
-  - [x] Step 8: Marca (logo, colores)
+- [x] Formulario multi-paso de 8 pasos completo
 - [x] Generacion del brief tecnico en Markdown
-- [x] Barra de progreso por pasos
-- [x] Preview del brief generado (BriefPreview)
-- [x] Guardado progresivo (actions/technical-brief.ts)
-- [x] Store Zustand (technical-brief.store.ts)
+- [x] Barra de progreso, preview, guardado progresivo
+
+### Feature: Storyboard (src/features/storyboard/) — NUEVO
+- [x] Generacion de storyboard textual (tecnico y comercial)
+  - Tecnico: 3 infografias + 10 slides tecnicos descritos en detalle
+  - Comercial: 4 infografias (ROI x2 + Roadmap x2) + 10 slides ejecutivos
+- [x] Versionado: cada cambio crea version N+1
+- [x] Iteracion por comentarios del usuario
+- [x] Aprobacion con timestamp
+- [x] UI: StoryboardReviewer con botones Aprobar / Pedir cambios
+- [x] Actions: getStoryboard, generateStoryboard, approveStoryboard
+- [x] Ruta: /projects/[id]/storyboard?type=technical|commercial
+
+### Skill: storyboard-draft — NUEVO
+- [x] .claude/skills/storyboard-draft/SKILL.md
+- [x] Logica de generacion tecnica y comercial
+- [x] Flujo de iteracion con comentarios
+- [x] Instrucciones de estructura por pieza (infografias y slides)
 
 ### Feature: Infographic Generation (src/features/infographic-generation/)
-- [x] Generacion asincrona de 3 variantes tecnicas con IA (OpenRouter + Gemini)
-  - Variante 1: Diagrama de Flujo de Datos
-  - Variante 2: Arquitectura de Componentes estilo AWS/Azure
-  - Variante 3: Timeline Tecnico de Fases
+- [x] Generacion async de 3 variantes tecnicas con IA (OpenRouter + Gemini)
 - [x] Barra de progreso por variante (Supabase Realtime)
-- [x] Seleccion de variante preferida
-- [x] Retry por variante fallida
-- [x] Persistencia de jobs en generation_jobs
-- [x] Hook useRealtimeJobProgress (suscripcion en tiempo real)
-- [x] Prompt builder por variante (prompt-builder.ts)
-- [x] Integracion OpenRouter (openrouter-image.ts)
+- [x] Seleccion de variante + retry
+- [x] Persistencia en generation_jobs
 
 ---
 
 ## Pendiente
 
-### FALTA: OPENROUTER_API_KEY en .env.local
+### URGENTE: OPENROUTER_API_KEY en .env.local
 - [ ] Agregar `OPENROUTER_API_KEY=sk-or-...` en .env.local
-  - Sin esta key la generacion de infografias falla en silencio
-  - Obtener en: https://openrouter.ai/keys
+  - Sin esta key la generacion de infografias falla
 
-### Feature: Brand Identity
-- [ ] Verificar si el Step 8 del brief ya guarda en tabla `brand_specs` o solo en `step_data`
-- [ ] Si no: crear accion para persistir logo_url + colores en tabla brand_specs separada
-- [ ] Validacion de contraste WCAG AA (ratio > 4.5:1) con alerta no bloqueante
-
-### Feature: Presentation Generation (src/features/presentation-generation/) — NO EXISTE AUN
+### Feature: Presentation Generation (src/features/presentation-generation/) — NO EXISTE
 - [ ] Generar presentacion tecnica HTML (10 slides) con brand identity
-- [ ] Preview de 2 slides antes de aprobar
+  - Usar el storyboard aprobado como estructura exacta de cada slide
+- [ ] Preview de slides antes de aprobar
 - [ ] Persistir en tabla `presentations` (type: 'technical')
-- [ ] Ruta: /projects/[id]/technical → boton "Generar presentacion" post-seleccion de infografia
+- [ ] Ruta integrada en /projects/[id]/technical post-seleccion de infografia
 
-### Feature: Commercial Proposal (src/features/commercial-proposal/) — NO EXISTE AUN
-- [ ] Ruta: /projects/[id]/commercial (el link ya existe en /projects/[id] pero la page no)
+### Feature: Commercial Proposal (src/features/commercial-proposal/) — NO EXISTE
+- [ ] Ruta: /projects/[id]/commercial (el link ya existe pero la page no)
 - [ ] Editor Markdown para descripcion ejecutiva
 - [ ] Tabla de fases con costos (Discovery, Diseno, Implementacion, Rollout)
 - [ ] Roadmap con actividades, fechas y equipos
 - [ ] Generacion de propuesta-comercial.md
 - [ ] Persistir en tabla `commercial_proposals`
-- [ ] Generacion de infografias comerciales (2 ROI + 2 Roadmap)
-  - ROI Variante A: Timeline de retorno (zona roja/verde)
-  - ROI Variante B: Comparativa Antes/Despues
-  - Roadmap Variante A: Timeline horizontal de 4 fases
-  - Roadmap Variante B: Gantt-style con actividades
-- [ ] Generacion de presentacion comercial HTML (10 slides ejecutivos)
+- [ ] Storyboard comercial (flujo identico al tecnico)
+- [ ] Generacion de 4 infografias comerciales (2 ROI + 2 Roadmap)
+- [ ] Generacion de presentacion comercial HTML (10 slides)
 
-### Feature: Downloads (src/features/downloads/) — NO EXISTE AUN
-- [ ] ZIP tecnico: `{slug}-tecnica.zip` con brief.md + infografias + presentacion.html
-- [ ] ZIP comercial: `{slug}-comercial.zip` con propuesta.md + infografias + presentacion.html
-- [ ] ZIP completo: `{slug}-completo.zip` con ambas carpetas
-- [ ] Metadata JSON: `{slug}.json` incluido en cada ZIP
+### Feature: Downloads (src/features/downloads/) — NO EXISTE
+- [ ] ZIP tecnico: `{slug}-tecnica.zip`
+  - brief-tecnico.md + storyboard-tecnico.md + infografias + presentacion.html + brand-identity.md
+- [ ] ZIP comercial: `{slug}-comercial.zip`
+  - propuesta-comercial.md + storyboard-comercial.md + infografias + presentacion.html
+- [ ] ZIP completo: `{slug}-completo.zip` con ambas carpetas + {slug}.json
 - [ ] Registro de descargas en tabla `downloads`
-- [ ] Botones de descarga en /projects/[id] segun fase completada
+- [ ] Botones de descarga en /projects/[id]
+
+### Supabase: Migraciones pendientes
+- [ ] Crear tabla `brand_identity` (project_id, markdown_content)
+- [ ] Crear tabla `storyboards` (project_id, type, content_md, version, approved_at)
+- [ ] Aplicar RLS a ambas tablas
 
 ### Testing
-- [ ] Tests E2E con Playwright:
-  - [ ] Flujo completo arquitecto (crear proyecto → brief → infografias → presentacion → descarga)
-  - [ ] Flujo comercial (acceso condicional → propuesta → infografias → descarga)
-  - [ ] Validar bloqueo de fase comercial sin fase tecnica
+- [ ] Tests E2E: flujo completo arquitecto (brand → brief → storyboard → infografias → presentacion → descarga)
+- [ ] Tests E2E: flujo comercial con acceso condicional
 
 ### Deploy
-- [ ] Configurar variables de entorno en Vercel
+- [ ] Configurar variables de entorno en Vercel (incluir OPENROUTER_API_KEY)
 - [ ] Deploy en Vercel
-- [ ] Configurar dominio de produccion en Supabase (Site URL + OAuth redirects)
+- [ ] Actualizar Site URL en Supabase para produccion
+
+---
+
+## Flujo completo actualizado
+
+```
+Crear proyecto
+    → Brand Identity (/brand)       ← NUEVO, completado en codigo
+    → Brief Tecnico (/technical)    ← COMPLETADO
+    → Storyboard (/storyboard)      ← NUEVO, completado en codigo
+    → Infografias (/technical)      ← COMPLETADO (pendiente OPENROUTER_API_KEY)
+    → Presentacion (/technical)     ← PENDIENTE implementar
+    → Descarga ZIP                  ← PENDIENTE implementar
+    → [Fase Comercial] /commercial  ← PENDIENTE implementar
+```
 
 ---
 
 ## Notas Tecnicas
 
-- La ruta `/projects/[id]/commercial` esta referenciada en el detail page pero **la page.tsx no existe**
-- Los jobs de generacion se procesan **en el Server Action** (no en Edge Functions) — esto puede tener timeout en Vercel (max 60s). Revisar si las 3 infografias se generan en tiempo
-- OpenRouter usa `google/gemini-2.0-flash-exp` para imagenes — confirmar que el modelo sigue disponible
-- Supabase Realtime ya esta configurado en `useRealtimeJobProgress` para ver progreso en vivo
+- El storyboard aprobado debe pasarse como contexto al prompt de generacion de imagenes (actualizar openrouter-image.ts)
+- La tabla `brand_specs` fue reemplazada por `brand_identity` (campo unico markdown_content en vez de campos separados)
+- Los jobs de generacion se procesan en Server Actions — revisar timeout de Vercel (max 60s por funcion)
+- OpenRouter usa `google/gemini-2.0-flash-exp` — confirmar disponibilidad del modelo
 
 ---
 
 ## Siguiente Paso Recomendado
 
-1. Agregar `OPENROUTER_API_KEY` en .env.local
-2. Probar la generacion de infografias tecnicas end-to-end
-3. Implementar `/projects/[id]/commercial` (la ruta ya esta linkeada)
-4. Implementar feature downloads para poder cerrar el ciclo completo
+1. Ejecutar migraciones en Supabase (brand_identity + storyboards + RLS)
+2. Agregar OPENROUTER_API_KEY en .env.local
+3. Probar flujo completo: brand → brief → storyboard → infografias
+4. Implementar feature commercial-proposal
+5. Implementar feature downloads

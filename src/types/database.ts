@@ -5,6 +5,7 @@ export type PresentationType = 'technical' | 'commercial'
 export type JobType = 'technical_infographics' | 'commercial_infographics' | 'technical_presentation' | 'commercial_presentation'
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 export type DownloadType = 'technical' | 'commercial' | 'complete'
+export type StoryboardType = 'technical' | 'commercial'
 
 export interface Profile {
   id: string
@@ -40,13 +41,21 @@ export interface TechnicalBrief {
   updated_at: string
 }
 
-export interface BrandSpec {
+export interface BrandIdentity {
   id: string
   project_id: string
-  logo_url: string | null
-  primary_color: string
-  secondary_color: string
-  accent_color: string
+  markdown_content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Storyboard {
+  id: string
+  project_id: string
+  type: StoryboardType
+  content_md: string
+  version: number
+  approved_at: string | null
   created_at: string
   updated_at: string
 }
@@ -119,10 +128,15 @@ export interface Database {
         Insert: Omit<TechnicalBrief, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<TechnicalBrief, 'id' | 'created_at'>>
       }
-      brand_specs: {
-        Row: BrandSpec
-        Insert: Omit<BrandSpec, 'id' | 'created_at' | 'updated_at'>
-        Update: Partial<Omit<BrandSpec, 'id' | 'created_at'>>
+      brand_identity: {
+        Row: BrandIdentity
+        Insert: Omit<BrandIdentity, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<BrandIdentity, 'id' | 'created_at'>>
+      }
+      storyboards: {
+        Row: Storyboard
+        Insert: Omit<Storyboard, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Storyboard, 'id' | 'created_at'>>
       }
       infographics: {
         Row: Infographic

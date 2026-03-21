@@ -1,6 +1,6 @@
 # BUSINESS_LOGIC.md - PropuestasAI
 
-> Generado por SaaS Factory V4 | Fecha: 2026-03-16
+> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-21
 
 ---
 
@@ -19,32 +19,56 @@
 
 **Propuesta de valor:** Un generador automático de materiales de propuesta técnica y comercial (infografías + presentaciones HTML/PDF) para arquitectos y gestores comerciales de consultoras de software, usando IA para crear el contenido visual en minutos con identidad de marca propia.
 
-**Flujo principal (Happy Path):**
+### Premisa del flujo
 
-### Flujo Arquitecto (Fase Técnica)
-1. Arquitecto crea proyecto y completa formulario de 8 pasos (datos del cliente, problema, ROI esperado, funcionalidades, integraciones, presupuesto, solución técnica, marca)
-2. Sistema genera brief técnico en Markdown automáticamente
-3. Sistema genera 3 variantes de infografía técnica con IA (Diagrama de Flujo / Arquitectura de Componentes / Timeline de Fases)
-4. Arquitecto selecciona variante preferida y ve preview de 2 slides
-5. Arquitecto aprueba → sistema genera presentación técnica completa (10 slides HTML)
-6. Arquitecto descarga ZIP con carpeta `/tecnica/` (brief + infografías + presentación)
+> **El formulario de 8 pasos NO genera el discovery — lo captura.**
+>
+> Se asume que antes de usar la app, el arquitecto ya realizó un proceso de discovery con el cliente: reuniones, análisis del problema, definición de la solución técnica, estimación de presupuesto y roadmap. La app es la herramienta que toma esa información ya elaborada y produce los materiales de presentación (infografías + slides) en minutos, con la identidad visual del cliente.
 
-### Flujo Comercial (Fase Comercial)
-7. Gestor comercial accede al proyecto (solo si la fase técnica está completa)
-8. Completa propuesta comercial: descripción ejecutiva, tarifas por fase, roadmap con fechas
-9. Sistema genera 2 variantes de infografía ROI y 2 variantes de infografía Roadmap con IA
-10. Gestor selecciona variantes → sistema genera presentación comercial completa (10 slides HTML)
-11. Gestor descarga ZIP con carpeta `/comercial/` (propuesta + infografías + presentación)
-12. Opcionalmente descargar ZIP completo con ambas carpetas
+### Flujo principal (Happy Path)
+
+#### Fase 0: Preparación
+1. Arquitecto crea el proyecto en la app (nombre del cliente, descripción)
+2. Configura la **identidad de marca** del cliente: sube o edita un archivo Markdown con colores, tipografía, tono visual y logo. Si no tiene uno, parte de una plantilla base que puede personalizar.
+
+#### Fase 1: Técnica (Arquitecto)
+3. Arquitecto completa el formulario de 8 pasos con la información del discovery previo:
+   - Datos del cliente y proyecto
+   - Descripción del problema y sus impactos
+   - KPIs actuales y objetivos (ROI esperado)
+   - Tabla de funcionalidades con prioridad (Must/Should/Could)
+   - Integraciones técnicas
+   - Presupuesto por recurso
+   - Arquitectura y stack propuesto
+   - Confirmación de identidad de marca
+4. Sistema genera brief técnico en Markdown automáticamente
+5. Sistema genera **storyboard técnico** (borrador textual de las 3 infografías y los 10 slides):
+   - Para cada pieza: título, objetivo visual, elementos clave, descripción de layout, texto exacto
+   - Arquitecto revisa el storyboard, lo aprueba o solicita ajustes con comentarios
+   - El sistema regenera solo las piezas modificadas hasta obtener aprobación
+6. Con el storyboard aprobado, sistema genera 3 variantes de infografía técnica con IA
+7. Arquitecto selecciona variante preferida
+8. Sistema genera presentación técnica completa (10 slides HTML)
+9. Arquitecto descarga ZIP con carpeta `/tecnica/` (brief + infografías + presentación)
+
+#### Fase 2: Comercial (Gestor Comercial — solo si fase técnica completada)
+10. Gestor accede al proyecto
+11. Completa propuesta comercial: descripción ejecutiva, tarifas por fase, roadmap con fechas
+12. Sistema genera **storyboard comercial** (borrador textual de 4 infografías y 10 slides comerciales)
+    - Gestor revisa, aprueba o itera con comentarios
+13. Con storyboard aprobado, genera 2 variantes ROI + 2 variantes Roadmap
+14. Gestor selecciona variantes → sistema genera presentación comercial (10 slides HTML)
+15. Gestor descarga ZIP con carpeta `/comercial/`
+16. Opcionalmente descarga ZIP completo con ambas carpetas
 
 ---
 
 ## 3. Usuario Objetivo
 
 **Roles:**
-- **Arquitecto Técnico** — diseña la solución, llena el brief técnico, genera materiales técnicos
-- **Gestor Comercial** — prepara propuesta de venta, genera infografías con ROI y roadmap
-- **Administrador del Sistema** — configura claves de APIs (OpenRouter, Gemini), gestiona usuarios
+- **Arquitecto Técnico** — realiza el discovery con el cliente, captura la información en el formulario, genera y aprueba materiales técnicos
+- **Gestor Comercial** — prepara la propuesta de venta a partir del brief técnico aprobado, genera materiales comerciales
+- **Administrador del Sistema** — configura claves de APIs (OpenRouter, Gemini), gestiona usuarios y permisos
 
 **Contexto:** Consultoras de transformación digital y agencias de soluciones de IA que generan entre 5 y 30 propuestas por mes. Actualmente usan PPT + NotebookLLM + edición manual. El dolor más grande del comercial es quitar marcas de agua de herramientas gratuitas y mantener coherencia de marca.
 
@@ -61,27 +85,31 @@
 - Tabla de recursos y presupuesto (por tipo: VPS, Storage, licencias)
 - Descripción de arquitectura y stack tecnológico propuesto
 - Fases de implementación con duración y fechas
-- Especificación de marca: logo (PNG/SVG <5MB), color primario, color secundario, color acento
+- Brand identity en Markdown: colores HEX, tipografías, tono visual, logo URL, texturas
 - Propuesta comercial en Markdown (descripción ejecutiva, beneficios, caso de uso)
 - Tabla de fases con costos (Discovery, Diseño, Implementación, Rollout)
 - Roadmap con actividades, fechas y equipos
 
 **Output:**
-- `brief-tecnico.md` — documento técnico completo (Template 1)
+- `brief-tecnico.md` — documento técnico completo
+- `storyboard-tecnico.md` — descripción textual aprobada de infografías y slides técnicos
 - `presentacion-tecnica.html` — 10 slides interactivos con brand identity
 - 3 infografías técnicas PNG 800×600 (flujo de datos / arquitectura / timeline)
-- `propuesta-comercial.md` — documento comercial completo (Template 2)
+- `storyboard-comercial.md` — descripción textual aprobada de infografías y slides comerciales
+- `propuesta-comercial.md` — documento comercial completo
 - `presentacion-comercial.html` — 10 slides ejecutivos con brand identity
-- 2 infografías comerciales ROI PNG 800×600 (curva retorno / antes-después)
-- 2 infografías roadmap PNG 800×600 (timeline horizontal / Gantt-style)
+- 2 infografías comerciales ROI PNG 800×600
+- 2 infografías roadmap PNG 800×600
+- `brand-identity.md` — identidad visual del proyecto
 - `proyecto-xyz.json` — metadata completa del proyecto
 - ZIP descargable por carpeta o completo
 
 **Storage (Supabase tables):**
 - `projects` — id, name, client, architect_id, commercial_id, status, created_at
-- `technical_briefs` — project_id, step_data (JSONB con los 8 pasos), generated_at
-- `brand_specs` — project_id, logo_url, primary_color, secondary_color, accent_color
-- `infographics` — project_id, type (technical/roi/roadmap), variant (1/2/3), url, selected
+- `technical_briefs` — project_id, step_data (JSONB), generated_at
+- `brand_identity` — project_id, markdown_content, created_at, updated_at
+- `storyboards` — id, project_id, type (technical/commercial), content_md, version, approved_at, created_at
+- `infographics` — project_id, type (technical/roi/roadmap), variant, url, selected
 - `presentations` — project_id, type (technical/commercial), html_url, slides_count
 - `commercial_proposals` — project_id, markdown_content, phases_data (JSONB), generated_at
 - `downloads` — project_id, type (technical/commercial/complete), zip_url, downloaded_at
@@ -107,9 +135,10 @@
 ```
 src/features/
 ├── auth/                    # Autenticación con 3 roles (architect, commercial, admin)
-├── projects/                # CRUD de proyectos + dashboard de proyectos
+├── projects/                # CRUD de proyectos + dashboard
+├── brand-identity/          # Editor Markdown de identidad visual + plantilla base + upload
 ├── technical-brief/         # Formulario multi-paso 8 pasos + generación brief MD
-├── brand-identity/          # Upload de logo + color picker + preview
+├── storyboard/              # Generación de storyboard textual + revisión + aprobación iterativa
 ├── infographic-generation/  # Generación async con IA + selección de variante
 ├── presentation-generation/ # Generación de HTML slides + preview
 ├── commercial-proposal/     # Editor Markdown + tablas de fases/costos/roadmap
@@ -121,13 +150,15 @@ src/features/
 | Feature | Architect | Commercial | Admin |
 |---------|-----------|------------|-------|
 | Crear / editar proyecto | ✓ | ✗ | ✓ |
+| Configurar brand identity | ✓ | ✗ | ✓ |
 | Formulario técnico (8 pasos) | ✓ | ✗ | ✓ |
-| Upload logo / marca | ✓ | ✗ | ✓ |
+| Storyboard técnico (generar/aprobar) | ✓ | ✗ | ✓ |
 | Generar infografías técnicas | ✓ | ✗ | ✓ |
 | Generar presentación técnica | ✓ | ✗ | ✓ |
 | Descargar ZIP técnico | ✓ | ✗ | ✓ |
 | Ver brief técnico (read-only) | ✓ | ✓ (RO) | ✓ |
 | Propuesta comercial | ✗ | ✓ | ✓ |
+| Storyboard comercial (generar/aprobar) | ✗ | ✓ | ✓ |
 | Generar infografías comerciales | ✗ | ✓ | ✓ |
 | Generar presentación comercial | ✗ | ✓ | ✓ |
 | Descargar ZIP comercial / completo | ✗ | ✓ | ✓ |
@@ -135,47 +166,67 @@ src/features/
 
 ### Lógica de Negocio Crítica
 
-1. **Acceso condicional al flujo comercial:** El gestor comercial solo puede acceder a la fase comercial si `technical_briefs.generated_at IS NOT NULL` para ese proyecto.
+1. **Acceso condicional al flujo comercial:** El gestor solo puede acceder si `technical_briefs.generated_at IS NOT NULL`.
 
-2. **Generación de infografías con IA:**
+2. **Brand identity como contexto de generación:** Todos los prompts de infografías y slides inyectan el markdown de brand identity para garantizar coherencia visual.
+
+3. **Storyboard como checkpoint obligatorio:** No se puede lanzar generación de imágenes ni slides sin un storyboard con `approved_at IS NOT NULL`. Esto evita generaciones fallidas por prompts mal definidos.
+
+4. **Iteración del storyboard:**
+   - Cada revisión con comentarios crea una nueva versión (`version` incremental)
+   - Se guardan todas las versiones para auditoría
+   - Solo la última versión aprobada se usa como contexto de generación
+
+5. **Generación de infografías con IA:**
    - Usar OpenRouter con Gemini 2.0 Flash para generación de imágenes
-   - Generar prompt específico por variante (ver especificación funcional)
-   - Post-process: redimensionar a 800×600, añadir logo watermark en esquina
+   - El prompt incluye: storyboard aprobado + brand identity + dimensiones 1024×768px
+   - Post-process: redimensionar a 800×600, añadir logo en esquina según brand identity
    - Guardar en Supabase Storage bajo `/projects/{id}/infographics/`
-   - Si falla generación → mostrar error claro, permitir reintentar
 
-3. **Generación async con progress:**
-   - Generación de 3 infografías técnicas puede tomar 30-90 segundos
+6. **Generación async con progress:**
    - Usar Supabase Realtime para actualizar estado del job en tiempo real
    - UI muestra barra de progreso por infografía (33% → 66% → 100%)
 
-4. **Validación de colores WCAG:**
-   - Verificar contraste primario/secundario ratio > 4.5:1 (WCAG AA)
-   - Si no cumple → alerta al usuario pero no bloquear
+7. **Plantilla base de brand identity:**
+   - Al crear un proyecto, se pre-carga una plantilla Markdown editable
+   - El usuario puede reemplazarla por completo subiendo su propio `.md`
+   - Si no hay logo, se omite el watermark en los materiales generados
 
-5. **ZIP generator:**
-   - Estructura de carpetas exacta: `proyecto-xyz/tecnica/` y `proyecto-xyz/comercial/`
-   - Incluir `proyecto-xyz.json` con metadata
-   - Nombre del ZIP: `{slug-proyecto}-tecnica.zip` / `{slug-proyecto}-comercial.zip` / `{slug-proyecto}-completo.zip`
+8. **ZIP generator:**
+   - Estructura: `proyecto-xyz/tecnica/` y `proyecto-xyz/comercial/`
+   - Incluir `brand-identity.md` y `storyboard-*.md` en cada carpeta
+   - Nombre: `{slug}-tecnica.zip` / `{slug}-comercial.zip` / `{slug}-completo.zip`
 
-### Generación de Contenido IA
+### Generación de Storyboard (Skill: storyboard-draft)
 
-**Para infografías técnicas (3 variantes):**
-- Variante 1: Diagrama de Flujo de Datos (LEFT→RIGHT, bloques + flechas)
-- Variante 2: Arquitectura de Componentes estilo AWS/Azure
-- Variante 3: Timeline Técnico de Fases (Gantt-like visual)
+El skill `storyboard-draft` genera un documento Markdown estructurado con:
 
-**Para infografías comerciales ROI (2 variantes):**
-- Variante 1A: ROI Timeline (curva de retorno en el tiempo, zona roja/verde)
-- Variante 1B: Comparativa Antes/Después (métricas side-by-side)
+**Para cada infografía técnica (3):**
+```markdown
+## Infografía 1 — Diagrama de Flujo de Datos
+**Objetivo:** Mostrar cómo fluye la información entre sistemas
+**Layout:** Horizontal LEFT→RIGHT, 4 bloques conectados con flechas
+**Colores:** Fondo #F8FAFC, bloques en color primario, flechas en acento
+**Elementos:**
+- Bloque 1: "Usuario Final" (ícono persona)
+- Bloque 2: "API Gateway" (ícono nube)
+- Bloque 3: "Procesamiento IA" (ícono chip)
+- Bloque 4: "Base de Datos" (ícono cilindro)
+**Texto en imagen:** Solo etiquetas cortas, max 4 palabras por elemento
+**Logo:** Esquina inferior derecha, 60px
+```
 
-**Para infografías roadmap (2 variantes):**
-- Variante 2A: Timeline Horizontal de 4 fases (ejecutivo, no técnico)
-- Variante 2B: Gantt-style con actividades por fase
-
-**Proveedor:** OpenRouter → `google/gemini-2.0-flash-exp` (imagen + texto)
-**Fallback:** Gemini directo via API si OpenRouter falla
-**Prompt base:** Inyectar brand colors, logo URL, datos del proyecto, dimensiones 1024×768px
+**Para cada slide de presentación (10):**
+```markdown
+## Slide 3 — Arquitectura Propuesta
+**Tipo:** Slide de contenido técnico
+**Título:** "Arquitectura de la Solución"
+**Subtítulo:** "Stack moderno, escalable y seguro"
+**Contenido principal:** Diagrama de 3 capas (Frontend / Backend / Datos)
+**Bullet points:** (si aplica)
+**Imagen de fondo:** Gradiente suave en colores de marca
+**CTA / nota al pie:** "Escalable a 10,000 usuarios concurrentes"
+```
 
 ### Stack Confirmado (Golden Path SaaS Factory)
 
@@ -189,21 +240,20 @@ src/features/
 | Testing | Playwright CLI + MCP |
 | Deploy | Vercel |
 
-> **Nota de adaptación:** La especificación original menciona Redis + Bull para jobs. En el golden path usamos Supabase Realtime + Edge Functions para jobs async. La lógica es equivalente pero sin infraestructura adicional.
-
 ### Próximos Pasos
 
-1. [ ] Configurar Supabase: tablas, RLS, Storage buckets
-2. [ ] Implementar Auth con roles (architect / commercial / admin)
-3. [ ] Feature: projects (CRUD + dashboard)
-4. [ ] Feature: technical-brief (multi-step form 8 pasos + generación MD)
-5. [ ] Feature: brand-identity (logo upload + color picker)
-6. [ ] Feature: infographic-generation (async con Realtime progress)
-7. [ ] Feature: presentation-generation (HTML slides con brand)
-8. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
-9. [ ] Feature: downloads (ZIP generator)
-10. [ ] Testing E2E con Playwright
-11. [ ] Deploy en Vercel
+1. [x] Configurar Supabase: tablas, RLS, Storage buckets
+2. [x] Implementar Auth con roles (architect / commercial / admin)
+3. [x] Feature: projects (CRUD + dashboard)
+4. [x] Feature: technical-brief (multi-step form 8 pasos + generación MD)
+5. [x] Feature: infographic-generation (async con Realtime progress)
+6. [ ] Feature: brand-identity (editor Markdown + plantilla base + upload)
+7. [ ] Feature: storyboard (generación textual + revisión iterativa + aprobación)
+8. [ ] Feature: presentation-generation (HTML slides con brand identity)
+9. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
+10. [ ] Feature: downloads (ZIP generator)
+11. [ ] Testing E2E con Playwright
+12. [ ] Deploy en Vercel
 
 ---
 
@@ -211,12 +261,15 @@ src/features/
 
 **Incluido en V1:**
 - Auth completo con 3 roles
+- Configuración de brand identity en Markdown (plantilla base editable + upload)
 - Formulario técnico de 8 pasos con validación
-- Generación de 3 variantes de infografía técnica con IA
+- Storyboard técnico: generación textual + revisión iterativa + aprobación
+- Generación de 3 variantes de infografía técnica con IA (con storyboard como contexto)
 - Preview de 2 slides técnicas antes de aprobar
 - Generación de presentación técnica HTML (10 slides)
 - Acceso condicional al flujo comercial
 - Formulario comercial con Markdown editor y tablas de fases/costos
+- Storyboard comercial: generación textual + revisión + aprobación
 - Generación de 2+2 variantes de infografías comerciales (ROI + Roadmap)
 - Generación de presentación comercial HTML (10 slides)
 - Descarga ZIP por sección y completa

@@ -26,6 +26,57 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const isArchitect = profile?.role === 'architect' || profile?.role === 'admin'
   const technicalDone = !!project.technical_completed_at
 
+  // Verificar brand identity y storyboard configurados
+  const [brandResult, storyboardResult] = await Promise.all([
+    supabase.from('brand_identity').select('id').eq('project_id', id).maybeSingle(),
+    supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'technical').order('version', { ascending: false }).limit(1).maybeSingle(),
+  ])
+
+  const hasBrand = !!brandResult.data
+  const hasStoryboard = !!storyboardResult.data
+  const storyboardApproved = !!storyboardResult.data?.approved_at
+
+  const steps = [
+    {
+      number: 1,
+      label: 'Identidad de Marca',
+      description: 'Colores, tipografia, logo y tono visual del cliente.',
+      done: hasBrand,
+      href: `/projects/${id}/brand`,
+      visible: isArchitect,
+      locked: false,
+    },
+    {
+      number: 2,
+      label: 'Brief Tecnico',
+      description: 'Captura del discovery: problema, ROI, funcionalidades y stack.',
+      done: technicalDone,
+      href: `/projects/${id}/technical`,
+      visible: isArchitect,
+      locked: false,
+    },
+    {
+      number: 3,
+      label: 'Storyboard Tecnico',
+      description: 'Borrador textual de infografias y slides. Revisar y aprobar antes de generar.',
+      done: storyboardApproved,
+      href: `/projects/${id}/storyboard?type=technical`,
+      visible: isArchitect,
+      locked: !technicalDone,
+      lockedReason: 'Requiere el brief tecnico completado.',
+    },
+    {
+      number: 4,
+      label: 'Infografias y Presentacion Tecnica',
+      description: '3 variantes de infografias + presentacion HTML de 10 slides.',
+      done: false,
+      href: `/projects/${id}/technical`,
+      visible: isArchitect,
+      locked: !storyboardApproved,
+      lockedReason: 'Requiere el storyboard tecnico aprobado.',
+    },
+  ]
+
   return (
     <div className="min-h-screen p-8">
       <div className="mx-auto max-w-4xl">
@@ -45,37 +96,64 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <p className="mt-4 text-gray-600">{project.description}</p>
         )}
 
-        {/* Fases */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {/* Fase Técnica */}
-          <div className={`rounded-lg border-2 p-6 ${technicalDone ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Fase Técnica</h2>
-              {technicalDone && (
-                <span className="text-sm font-medium text-green-600">✓ Completada</span>
-              )}
-            </div>
-            <p className="mt-2 text-sm text-gray-600">
-              Brief técnico, infografías y presentación para el equipo de arquitectura.
-            </p>
-            <div className="mt-4">
-              {isArchitect ? (
-                <Link
-                  href={`/projects/${id}/technical`}
-                  className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  {technicalDone ? 'Ver brief técnico' : 'Completar brief técnico →'}
-                </Link>
-              ) : (
-                <span className="text-sm text-gray-500">
-                  {technicalDone ? 'Brief técnico completado' : 'Pendiente de completar por el arquitecto'}
-                </span>
-              )}
+        {/* Flujo Tecnico */}
+        {isArchitect && (
+          <div className="mt-8">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">Fase Tecnica</h2>
+            <div className="space-y-3">
+              {steps.map((step) => {
+                if (!step.visible) return null
+                return (
+                  <div
+                    key={step.number}
+                    className={`rounded-lg border-2 p-5 transition-colors ${
+                      step.done
+                        ? 'border-green-200 bg-green-50'
+                        : step.locked
+                        ? 'border-gray-200 bg-gray-50 opacity-60'
+                        : hasStoryboard && step.number === 3
+                        ? 'border-yellow-200 bg-yellow-50'
+                        : 'border-blue-200 bg-blue-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                          step.done ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
+                        }`}>
+                          {step.done ? '✓' : step.number}
+                        </span>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{step.label}</h3>
+                          <p className="text-sm text-gray-600">{step.description}</p>
+                        </div>
+                      </div>
+                      <div>
+                        {step.locked ? (
+                          <span className="text-xs text-gray-400">🔒 {step.lockedReason}</span>
+                        ) : (
+                          <Link
+                            href={step.href}
+                            className={`inline-flex rounded-md px-4 py-1.5 text-sm font-medium text-white ${
+                              step.done ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
+                          >
+                            {step.done ? 'Ver' : 'Completar →'}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
+        )}
 
-          {/* Fase Comercial */}
-          <div className={`rounded-lg border-2 p-6 ${
+        {/* Fase Comercial */}
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Fase Comercial</h2>
+          <div className={`rounded-lg border-2 p-5 ${
             !technicalDone
               ? 'border-gray-200 bg-gray-50 opacity-60'
               : project.commercial_completed_at
@@ -83,28 +161,27 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
               : 'border-purple-200 bg-purple-50'
           }`}>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Fase Comercial</h2>
-              {project.commercial_completed_at && (
-                <span className="text-sm font-medium text-green-600">✓ Completada</span>
-              )}
-              {!technicalDone && (
-                <span className="text-xs text-gray-400">🔒 Bloqueada</span>
-              )}
-            </div>
-            <p className="mt-2 text-sm text-gray-600">
-              Propuesta comercial, infografías de ROI y presentación ejecutiva para el cliente.
-            </p>
-            <div className="mt-4">
-              {!technicalDone ? (
-                <p className="text-xs text-gray-400">
-                  Requiere la fase técnica completada para habilitarse.
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-900">Propuesta Comercial</h3>
+                  {!technicalDone && <span className="text-xs text-gray-400">🔒 Bloqueada</span>}
+                  {project.commercial_completed_at && <span className="text-sm font-medium text-green-600">✓ Completada</span>}
+                </div>
+                <p className="mt-1 text-sm text-gray-600">
+                  Propuesta, infografias de ROI/Roadmap y presentacion ejecutiva.
                 </p>
-              ) : (
+                {!technicalDone && (
+                  <p className="mt-1 text-xs text-gray-400">
+                    Requiere la fase tecnica completada para habilitarse.
+                  </p>
+                )}
+              </div>
+              {technicalDone && (
                 <Link
                   href={`/projects/${id}/commercial`}
-                  className="inline-flex rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700"
+                  className="inline-flex rounded-md bg-purple-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
                 >
-                  {project.commercial_completed_at ? 'Ver propuesta comercial' : 'Completar propuesta comercial →'}
+                  {project.commercial_completed_at ? 'Ver propuesta' : 'Completar →'}
                 </Link>
               )}
             </div>
@@ -113,7 +190,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
         {/* Metadata */}
         <div className="mt-8 rounded-lg border border-gray-200 p-4">
-          <h3 className="text-sm font-medium text-gray-700">Información del proyecto</h3>
+          <h3 className="text-sm font-medium text-gray-700">Informacion del proyecto</h3>
           <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
             <div>
               <dt className="text-gray-500">Creado</dt>
