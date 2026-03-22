@@ -36,7 +36,7 @@ export function useTechnicalBrief(projectId: string) {
 
   const goToStep = useCallback(
     (step: number) => {
-      if (step >= 1 && step <= 8) setCurrentStep(step)
+      if (step >= 1 && step <= 5) setCurrentStep(step)
     },
     [setCurrentStep]
   )

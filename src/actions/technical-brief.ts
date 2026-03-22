@@ -129,24 +129,6 @@ export async function generateBrief(
 
   if (projectUpdateError) return { error: projectUpdateError.message }
 
-  // Upsert brand_specs si hay datos del paso 8
-  const step8 = stepData.step8
-  if (step8) {
-    await supabase
-      .from('brand_specs')
-      .upsert(
-        {
-          project_id: projectId,
-          logo_url: step8.logoUrl,
-          primary_color: step8.primaryColor,
-          secondary_color: step8.secondaryColor,
-          accent_color: step8.accentColor,
-          updated_at: now,
-        },
-        { onConflict: 'project_id' }
-      )
-  }
-
   revalidatePath(`/projects/${projectId}`)
   redirect(`/projects/${projectId}`)
 }

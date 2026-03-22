@@ -1,12 +1,9 @@
 const STEPS = [
   'Datos',
-  'Problema',
-  'ROI',
-  'Funcionalidades',
-  'Integraciones',
-  'Presupuesto',
-  'Solución',
-  'Marca',
+  'Contexto',
+  'Solucion',
+  'Decisiones',
+  'Entregables',
 ]
 
 export function StepProgressBar({ currentStep }: { currentStep: number }) {

@@ -1,35 +1,3 @@
-export interface KPI {
-  name: string
-  current: string
-  target: string
-  timeline: string
-}
-
-export interface Feature {
-  name: string
-  description: string
-  priority: 'Must' | 'Should' | 'Could'
-}
-
-export interface Integration {
-  name: string
-  type: 'BD' | 'API' | 'internal'
-  description: string
-}
-
-export interface BudgetItem {
-  type: 'VPS' | 'Storage' | 'License' | 'Other'
-  specification: string
-  monthlyCost: number
-  notes: string
-}
-
-export interface Phase {
-  name: string
-  duration: string
-  dates: string
-}
-
 export interface Step1Data {
   projectName: string
   clientCompany: string
@@ -38,45 +6,36 @@ export interface Step1Data {
 }
 
 export interface Step2Data {
-  problemDescription: string
-  impacts: string[]
-  technicalConstraints: string
+  problem: string
+  objective: string
+  inputs: string
+  expectedOutput: string
 }
 
 export interface Step3Data {
-  currentKPIs: KPI[]
-  targetKPIs: KPI[]
-  returnTimeline: string
-  totalInvestment: string
-  annualSavings: string
+  whatItDoes: string
+  requirements: string
+  outputs: string
+  howToTest: string
+  failureHandling: string
+  validCases: string
 }
 
 export interface Step4Data {
-  features: Feature[]
+  architectureDecisions: string
+  selfServiceConfig: string
+  whenToEscalate: string
+}
+
+export interface Deliverable {
+  name: string
+  format: string
+  acceptanceCriteria: string
 }
 
 export interface Step5Data {
-  integrations: Integration[]
-}
-
-export interface Step6Data {
-  budget: BudgetItem[]
-  currency: 'USD' | 'MXN' | 'EUR'
-}
-
-export interface Step7Data {
-  architectureDescription: string
-  stackBackend: string
-  stackFrontend: string
-  stackDatabase: string
-  phases: Phase[]
-}
-
-export interface Step8Data {
-  logoUrl: string | null
-  primaryColor: string
-  secondaryColor: string
-  accentColor: string
+  deliverables: Deliverable[]
+  finalAcceptanceCriteria: string
 }
 
 export interface StepData {
@@ -85,8 +44,5 @@ export interface StepData {
   step3?: Step3Data
   step4?: Step4Data
   step5?: Step5Data
-  step6?: Step6Data
-  step7?: Step7Data
-  step8?: Step8Data
   generatedBrief?: string
 }
