@@ -47,7 +47,10 @@ export async function generateStoryboard(
       .maybeSingle(),
   ])
 
-  if (!briefResult.data) return { error: 'El brief tecnico no existe. Completa el formulario primero.' }
+  if (!briefResult.data) {
+    console.error('[Storyboard] generateStoryboard: brief no encontrado para proyecto', projectId)
+    return { error: 'El brief tecnico no existe. Completa el formulario primero.' }
+  }
 
   const stepData = briefResult.data.step_data as Record<string, unknown>
   const brandMarkdown = brandResult.data?.markdown_content ?? ''
@@ -78,7 +81,10 @@ export async function generateStoryboard(
     .select('id, content_md, version')
     .single()
 
-  if (error) return { error: error.message }
+  if (error) {
+    console.error('[Storyboard] insert error:', error.message, { projectId, type })
+    return { error: error.message }
+  }
   return { data }
 }
 

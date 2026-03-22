@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getProjectById } from '@/actions/projects'
@@ -45,13 +46,23 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
 
   async function handleGenerate(comments?: string) {
     'use server'
-    await generateStoryboard(id, type, comments)
+    const result = await generateStoryboard(id, type, comments)
+    if ('error' in result) {
+      console.error('[Storyboard] generateStoryboard error:', result.error)
+      throw new Error(result.error)
+    }
+    revalidatePath(`/projects/${id}/storyboard`)
   }
 
   async function handleApprove() {
     'use server'
     if (!storyboardId) return
-    await approveStoryboard(storyboardId)
+    const result = await approveStoryboard(storyboardId)
+    if ('error' in result) {
+      console.error('[Storyboard] approveStoryboard error:', result.error)
+      throw new Error(result.error)
+    }
+    revalidatePath(`/projects/${id}/storyboard`)
   }
 
   const nextHref = type === 'technical'
