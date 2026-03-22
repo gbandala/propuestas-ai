@@ -41,6 +41,7 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
 
   const project = projectResult.data
   const storyboardData = 'data' in storyboardResult ? storyboardResult.data : null
+  const storyboardId = storyboardData?.id ?? null
 
   async function handleGenerate(comments?: string) {
     'use server'
@@ -49,8 +50,8 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
 
   async function handleApprove() {
     'use server'
-    if (!storyboardData?.id) return
-    await approveStoryboard(storyboardData.id)
+    if (!storyboardId) return
+    await approveStoryboard(storyboardId)
   }
 
   const nextHref = type === 'technical'

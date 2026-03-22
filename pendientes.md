@@ -1,6 +1,6 @@
 # PropuestasAI — Pendientes y Estado del Proyecto
 
-> Ultima actualizacion: 2026-03-21
+> Ultima actualizacion: 2026-03-22
 > App: Generador automatico de materiales de propuesta tecnica y comercial (infografias + presentaciones HTML)
 
 ---
@@ -19,9 +19,9 @@ Fase Tecnica:
   [x] Projects CRUD
   [x] Brand Identity (editor + plantilla base + upload)
   [x] Technical Brief (8 pasos + generacion MD)
-  [x] Storyboard Draft (UI + actions + skill Claude)
+  [x] Storyboard Draft (UI + actions + skill Claude) — bug fix aplicado 2026-03-22
   [x] Infographic Generation async (Realtime progress)
-  [ ] Presentation Generation (HTML 10 slides)
+  [ ] Presentation Generation (HTML 10 slides) — SIGUIENTE
 
 Fase Comercial:
   [ ] Commercial Proposal (editor MD + tarifas + roadmap)
@@ -41,10 +41,15 @@ Finalizacion:
 
 ### Infraestructura
 - [x] Supabase configurado (URL + keys en .env.local)
+- [x] OPENROUTER_API_KEY configurada en .env.local
 - [x] Tipos de base de datos actualizados (src/types/database.ts)
-  - Nuevas tablas: `brand_identity`, `storyboards`
-  - Removida tabla legacy `brand_specs`
 - [x] Cliente Supabase (client, server, proxy)
+
+### Tablas en Supabase (verificado 2026-03-22)
+- [x] profiles, projects, technical_briefs — existen y con RLS
+- [x] brand_identity, storyboards — existen y con RLS
+- [x] infographics, generation_jobs — existen
+- [ ] presentations, commercial_proposals, downloads — NO existen (pendiente de migracion)
 
 ### Auth (src/features/auth/)
 - [x] Login / Signup / Forgot password / Update password
@@ -55,40 +60,29 @@ Finalizacion:
 ### Feature: Projects (src/features/projects/)
 - [x] Dashboard de proyectos (/dashboard)
 - [x] Crear proyecto (nombre, cliente, descripcion)
-- [x] Detalle del proyecto con flujo de 5 pasos (fase tecnica) + fase comercial
+- [x] Detalle del proyecto con flujo de 4 pasos (fase tecnica) + fase comercial bloqueada
 - [x] Navegacion con estado visual de cada paso (completado / pendiente / bloqueado)
-- [x] Store Zustand
 
-### Feature: Brand Identity (src/features/brand-identity/) — NUEVO
-- [x] Editor Markdown con preview en tiempo real
+### Feature: Brand Identity (src/features/brand-identity/)
+- [x] Editor Markdown con preview en tiempo real (chips de colores)
 - [x] Plantilla base precargada al crear proyecto
 - [x] Upload de archivo .md personalizado
 - [x] Boton "Plantilla base" para resetear
-- [x] Actions: getBrandIdentity, saveBrandIdentity, initBrandIdentity
 - [x] Ruta: /projects/[id]/brand
-- [x] Solo accesible para architect y admin
 
 ### Feature: Technical Brief (src/features/technical-brief/)
 - [x] Formulario multi-paso de 8 pasos completo
 - [x] Generacion del brief tecnico en Markdown
 - [x] Barra de progreso, preview, guardado progresivo
 
-### Feature: Storyboard (src/features/storyboard/) — NUEVO
+### Feature: Storyboard (src/features/storyboard/)
 - [x] Generacion de storyboard textual (tecnico y comercial)
-  - Tecnico: 3 infografias + 10 slides tecnicos descritos en detalle
-  - Comercial: 4 infografias (ROI x2 + Roadmap x2) + 10 slides ejecutivos
 - [x] Versionado: cada cambio crea version N+1
 - [x] Iteracion por comentarios del usuario
 - [x] Aprobacion con timestamp
 - [x] UI: StoryboardReviewer con botones Aprobar / Pedir cambios
-- [x] Actions: getStoryboard, generateStoryboard, approveStoryboard
-- [x] Ruta: /projects/[id]/storyboard?type=technical|commercial
-
-### Skill: storyboard-draft — NUEVO
-- [x] .claude/skills/storyboard-draft/SKILL.md
-- [x] Logica de generacion tecnica y comercial
-- [x] Flujo de iteracion con comentarios
-- [x] Instrucciones de estructura por pieza (infografias y slides)
+- [x] Bug fix 2026-03-22: Server Action handleApprove cerraba sobre objeto complejo (null)
+      Fix: extraer storyboardId como primitivo antes del closure
 
 ### Feature: Infographic Generation (src/features/infographic-generation/)
 - [x] Generacion async de 3 variantes tecnicas con IA (OpenRouter + Gemini)
@@ -100,15 +94,19 @@ Finalizacion:
 
 ## Pendiente
 
-### URGENTE: OPENROUTER_API_KEY en .env.local
-- [ ] Agregar `OPENROUTER_API_KEY=sk-or-...` en .env.local
-  - Sin esta key la generacion de infografias falla
+### QA Manual en curso (2026-03-22)
+- [ ] Usuario hace prueba manual del flujo completo:
+  - Brand Identity → guardar
+  - Brief Tecnico → completar 8 pasos → generar brief MD
+  - Storyboard → generar → aprobar
+  - Infografias → verificar generacion con OPENROUTER_API_KEY real
+- [ ] Ajustes de UX que surjan del QA manual antes de continuar
 
 ### Feature: Presentation Generation (src/features/presentation-generation/) — NO EXISTE
 - [ ] Generar presentacion tecnica HTML (10 slides) con brand identity
   - Usar el storyboard aprobado como estructura exacta de cada slide
 - [ ] Preview de slides antes de aprobar
-- [ ] Persistir en tabla `presentations` (type: 'technical')
+- [ ] Persistir en tabla `presentations` (type: 'technical') — tabla pendiente de crear
 - [ ] Ruta integrada en /projects/[id]/technical post-seleccion de infografia
 
 ### Feature: Commercial Proposal (src/features/commercial-proposal/) — NO EXISTE
@@ -117,28 +115,21 @@ Finalizacion:
 - [ ] Tabla de fases con costos (Discovery, Diseno, Implementacion, Rollout)
 - [ ] Roadmap con actividades, fechas y equipos
 - [ ] Generacion de propuesta-comercial.md
-- [ ] Persistir en tabla `commercial_proposals`
+- [ ] Persistir en tabla `commercial_proposals` — tabla pendiente de crear
 - [ ] Storyboard comercial (flujo identico al tecnico)
 - [ ] Generacion de 4 infografias comerciales (2 ROI + 2 Roadmap)
 - [ ] Generacion de presentacion comercial HTML (10 slides)
 
 ### Feature: Downloads (src/features/downloads/) — NO EXISTE
 - [ ] ZIP tecnico: `{slug}-tecnica.zip`
-  - brief-tecnico.md + storyboard-tecnico.md + infografias + presentacion.html + brand-identity.md
 - [ ] ZIP comercial: `{slug}-comercial.zip`
-  - propuesta-comercial.md + storyboard-comercial.md + infografias + presentacion.html
-- [ ] ZIP completo: `{slug}-completo.zip` con ambas carpetas + {slug}.json
-- [ ] Registro de descargas en tabla `downloads`
-- [ ] Botones de descarga en /projects/[id]
+- [ ] ZIP completo: `{slug}-completo.zip`
+- [ ] Registro de descargas en tabla `downloads` — tabla pendiente de crear
 
 ### Supabase: Migraciones pendientes
-- [ ] Crear tabla `brand_identity` (project_id, markdown_content)
-- [ ] Crear tabla `storyboards` (project_id, type, content_md, version, approved_at)
-- [ ] Aplicar RLS a ambas tablas
-
-### Testing
-- [ ] Tests E2E: flujo completo arquitecto (brand → brief → storyboard → infografias → presentacion → descarga)
-- [ ] Tests E2E: flujo comercial con acceso condicional
+- [ ] Crear tabla `presentations` + RLS
+- [ ] Crear tabla `commercial_proposals` + RLS
+- [ ] Crear tabla `downloads` + RLS
 
 ### Deploy
 - [ ] Configurar variables de entorno en Vercel (incluir OPENROUTER_API_KEY)
@@ -151,30 +142,30 @@ Finalizacion:
 
 ```
 Crear proyecto
-    → Brand Identity (/brand)       ← NUEVO, completado en codigo
-    → Brief Tecnico (/technical)    ← COMPLETADO
-    → Storyboard (/storyboard)      ← NUEVO, completado en codigo
-    → Infografias (/technical)      ← COMPLETADO (pendiente OPENROUTER_API_KEY)
-    → Presentacion (/technical)     ← PENDIENTE implementar
-    → Descarga ZIP                  ← PENDIENTE implementar
-    → [Fase Comercial] /commercial  ← PENDIENTE implementar
+    → Brand Identity (/brand)       COMPLETADO + QA verificado
+    → Brief Tecnico (/technical)    COMPLETADO + QA verificado
+    → Storyboard (/storyboard)      COMPLETADO + bug fix + QA verificado
+    → Infografias (/technical)      COMPLETADO (pendiente QA manual con API key)
+    → Presentacion (/technical)     PENDIENTE implementar
+    → Descarga ZIP                  PENDIENTE implementar
+    → [Fase Comercial] /commercial  PENDIENTE implementar
 ```
+
+---
+
+## Bugs corregidos
+
+### 2026-03-22: Storyboard handleApprove crash con null
+- **Archivo:** src/app/(main)/projects/[id]/storyboard/page.tsx
+- **Error:** RuntimeTypeError — Cannot read properties of null (reading 'id')
+- **Causa:** Server Action cerraba sobre `storyboardData` (objeto complejo/null); Next.js falla al serializar el closure
+- **Fix:** Extraer `const storyboardId = storyboardData?.id ?? null` y usar el primitivo en el closure
 
 ---
 
 ## Notas Tecnicas
 
 - El storyboard aprobado debe pasarse como contexto al prompt de generacion de imagenes (actualizar openrouter-image.ts)
-- La tabla `brand_specs` fue reemplazada por `brand_identity` (campo unico markdown_content en vez de campos separados)
 - Los jobs de generacion se procesan en Server Actions — revisar timeout de Vercel (max 60s por funcion)
-- OpenRouter usa `google/gemini-2.0-flash-exp` — confirmar disponibilidad del modelo
-
----
-
-## Siguiente Paso Recomendado
-
-1. Ejecutar migraciones en Supabase (brand_identity + storyboards + RLS)
-2. Agregar OPENROUTER_API_KEY en .env.local
-3. Probar flujo completo: brand → brief → storyboard → infografias
-4. Implementar feature commercial-proposal
-5. Implementar feature downloads
+- OpenRouter usa `google/gemini-2.0-flash-exp` — confirmar disponibilidad del modelo en prueba real
+- La tabla `brand_specs` fue reemplazada por `brand_identity` (campo unico markdown_content)
