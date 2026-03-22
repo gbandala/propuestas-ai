@@ -1,76 +1,41 @@
 /**
- * Genera una imagen usando Gemini 2.0 Flash (vía OpenRouter o Gemini API directa).
+ * Genera una imagen usando google/gemini-2.5-flash via OpenRouter image generation API.
  * Retorna un Buffer con la imagen PNG lista para subir a Storage.
  *
- * Gemini image generation devuelve base64 inlineData — se decodifica aquí.
+ * Docs: https://openrouter.ai/docs/guides/overview/multimodal/image-generation
  */
 
-const GEMINI_MODEL = 'gemini-2.0-flash-preview-image-generation'
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+const IMAGE_MODEL = 'google/gemini-2.5-flash-preview-05-20'
 
 export async function generateInfographicImage(prompt: string): Promise<Buffer> {
-  const apiKey = process.env.GEMINI_API_KEY ?? process.env.OPENROUTER_API_KEY
+  const apiKey = process.env.OPENROUTER_API_KEY
 
   if (!apiKey) {
-    throw new Error(
-      'Falta GEMINI_API_KEY o OPENROUTER_API_KEY en las variables de entorno'
-    )
+    throw new Error('Falta OPENROUTER_API_KEY en las variables de entorno')
   }
 
-  // Intentar Gemini directamente primero
-  try {
-    return await generateWithGemini(prompt, apiKey)
-  } catch (geminiError) {
-    // Fallback: intentar OpenRouter con modelo de generación
-    try {
-      return await generateWithOpenRouter(prompt, apiKey)
-    } catch {
-      throw geminiError // lanzar el error original
-    }
-  }
-}
-
-async function generateWithGemini(prompt: string, apiKey: string): Promise<Buffer> {
-  const url = `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-    }),
-  })
-
-  if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Gemini API error ${response.status}: ${body}`)
-  }
-
-  const data = await response.json() as GeminiResponse
-  const imagePart = data.candidates?.[0]?.content?.parts?.find(
-    (p) => p.inlineData?.mimeType?.startsWith('image/')
-  )
-
-  if (!imagePart?.inlineData?.data) {
-    throw new Error('Gemini no retornó imagen en la respuesta')
-  }
-
-  return Buffer.from(imagePart.inlineData.data, 'base64')
-}
-
-async function generateWithOpenRouter(prompt: string, apiKey: string): Promise<Buffer> {
-  // OpenRouter usa el endpoint de chat completions con response_format imagen
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+      'X-Title': 'PropuestasAI',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-exp:free',
-      messages: [{ role: 'user', content: prompt }],
+      model: IMAGE_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      // Imagen landscape 4:3 para infografías
+      image_generation_config: {
+        quality: 'standard',
+        size: '1024x768',
+      },
     }),
   })
 
@@ -79,39 +44,73 @@ async function generateWithOpenRouter(prompt: string, apiKey: string): Promise<B
     throw new Error(`OpenRouter API error ${response.status}: ${body}`)
   }
 
-  const data = await response.json() as OpenRouterResponse
+  const data = await response.json() as OpenRouterImageResponse
+
+  // La respuesta puede venir como string base64 o como array de partes
   const content = data.choices?.[0]?.message?.content
 
-  // Si retorna base64 embebido en el contenido
-  if (typeof content === 'string' && content.startsWith('data:image')) {
-    const base64 = content.split(',')[1]
-    return Buffer.from(base64, 'base64')
+  if (!content) {
+    throw new Error('OpenRouter no retornó contenido en la respuesta')
   }
 
-  throw new Error('OpenRouter no retornó imagen en formato esperado')
-}
+  // Caso 1: content es un array de partes (multimodal)
+  if (Array.isArray(content)) {
+    const imagePart = content.find(
+      (part): part is ImageUrlPart =>
+        part.type === 'image_url' && typeof part.image_url?.url === 'string'
+    )
 
-// Tipos de respuesta de las APIs
-interface GeminiPart {
-  text?: string
-  inlineData?: {
-    mimeType: string
-    data: string
-  }
-}
-
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: GeminiPart[]
+    if (imagePart?.image_url?.url) {
+      return extractBase64Image(imagePart.image_url.url)
     }
-  }>
+
+    // También puede ser inline_data (formato Gemini)
+    const inlinePart = content.find(
+      (part): part is InlineDataPart =>
+        part.type === 'inline_data' && typeof part.inline_data?.data === 'string'
+    )
+
+    if (inlinePart?.inline_data?.data) {
+      return Buffer.from(inlinePart.inline_data.data, 'base64')
+    }
+  }
+
+  // Caso 2: content es string con data URL base64
+  if (typeof content === 'string' && content.startsWith('data:image')) {
+    return extractBase64Image(content)
+  }
+
+  throw new Error(`OpenRouter retornó formato inesperado. Content: ${JSON.stringify(content).slice(0, 200)}`)
 }
 
-interface OpenRouterResponse {
+function extractBase64Image(dataUrl: string): Buffer {
+  // Formato: data:image/png;base64,<base64data>
+  const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+  return Buffer.from(base64, 'base64')
+}
+
+// Tipos de respuesta
+interface TextPart {
+  type: 'text'
+  text: string
+}
+
+interface ImageUrlPart {
+  type: 'image_url'
+  image_url: { url: string }
+}
+
+interface InlineDataPart {
+  type: 'inline_data'
+  inline_data: { mimeType: string; data: string }
+}
+
+type ContentPart = TextPart | ImageUrlPart | InlineDataPart
+
+interface OpenRouterImageResponse {
   choices?: Array<{
     message?: {
-      content?: string
+      content?: string | ContentPart[]
     }
   }>
 }
