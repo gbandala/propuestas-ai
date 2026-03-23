@@ -21,7 +21,7 @@
 
 ### Premisa del flujo
 
-> **El formulario de 8 pasos NO genera el discovery — lo captura.**
+> **El formulario de 5 pasos NO genera el discovery — lo captura.**
 >
 > Se asume que antes de usar la app, el arquitecto ya realizó un proceso de discovery con el cliente: reuniones, análisis del problema, definición de la solución técnica, estimación de presupuesto y roadmap. La app es la herramienta que toma esa información ya elaborada y produce los materiales de presentación (infografías + slides) en minutos, con la identidad visual del cliente.
 
@@ -32,7 +32,7 @@
 2. Configura la **identidad de marca** del cliente: sube o edita un archivo Markdown con colores, tipografía, tono visual y logo. Si no tiene uno, parte de una plantilla base que puede personalizar.
 
 #### Fase 1: Técnica (Arquitecto)
-3. Arquitecto completa el formulario de 8 pasos con la información del discovery previo:
+3. Arquitecto completa el formulario de 5 pasos con la información del discovery previo:
    - Datos del cliente y proyecto
    - Descripción del problema y sus impactos
    - KPIs actuales y objetivos (ROI esperado)
@@ -151,7 +151,7 @@ src/features/
 |---------|-----------|------------|-------|
 | Crear / editar proyecto | ✓ | ✗ | ✓ |
 | Configurar brand identity | ✓ | ✗ | ✓ |
-| Formulario técnico (8 pasos) | ✓ | ✗ | ✓ |
+| Formulario técnico (5 pasos) | ✓ | ✗ | ✓ |
 | Storyboard técnico (generar/aprobar) | ✓ | ✗ | ✓ |
 | Generar infografías técnicas | ✓ | ✗ | ✓ |
 | Generar presentación técnica | ✓ | ✗ | ✓ |
@@ -234,7 +234,7 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 |------|-----------|
 | Frontend | Next.js 16 + React 19 + TypeScript + Tailwind 3.4 + shadcn/ui |
 | Backend | Supabase (Auth + Database + Storage + Realtime) |
-| IA | Vercel AI SDK v5 + OpenRouter (Gemini 2.0 Flash para imágenes) |
+| IA | Gemini API directa (primario, free) → @openrouter/sdk (fallback automático) |
 | Validación | Zod |
 | Estado | Zustand |
 | Testing | Playwright CLI + MCP |
@@ -245,15 +245,15 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 1. [x] Configurar Supabase: tablas, RLS, Storage buckets
 2. [x] Implementar Auth con roles (architect / commercial / admin)
 3. [x] Feature: projects (CRUD + dashboard)
-4. [x] Feature: technical-brief (multi-step form 8 pasos + generación MD)
+4. [x] Feature: technical-brief (multi-step form 5 pasos + generación MD)
 5. [x] Feature: infographic-generation (async con Realtime progress)
-6. [ ] Feature: brand-identity (editor Markdown + plantilla base + upload)
-7. [ ] Feature: storyboard (generación textual + revisión iterativa + aprobación)
-8. [ ] Feature: presentation-generation (HTML slides con brand identity)
-9. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
-10. [ ] Feature: downloads (ZIP generator)
-11. [ ] Testing E2E con Playwright
-12. [ ] Deploy en Vercel
+6. [x] Feature: brand-identity (editor Markdown + plantilla base)
+7. [x] Feature: storyboard con IA real (Gemini/OpenRouter, generacion contextual)
+8. [x] Capa de IA unificada: Gemini primario → OpenRouter fallback + ai_usage_logs
+9. [x] Bitácora /admin/ai-usage + AiModelBadge + Widget de créditos por proyecto
+10. [ ] Feature: presentation-generation (HTML slides con brand identity)
+11. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
+12. [ ] Feature: downloads (ZIP generator)
 
 ---
 
