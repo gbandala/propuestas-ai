@@ -14,11 +14,11 @@ const GEMINI_MODEL = 'gemini-3.1-flash-image-preview'
 const OPENROUTER_MODEL = 'google/gemini-3.1-flash-image-preview'
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 
-// Errores que activan el fallback a OpenRouter (quota, rate limit, modelo no disponible)
-const FALLBACK_STATUSES = new Set([429, 404, 503])
+// Errores que activan el fallback a OpenRouter (quota, rate limit, modelo no disponible, API key inválida)
+const FALLBACK_STATUSES = new Set([400, 429, 404, 503])
 function isQuotaOrUnavailable(status: number, body: string): boolean {
   if (FALLBACK_STATUSES.has(status)) return true
-  return body.includes('RESOURCE_EXHAUSTED') || body.includes('quota')
+  return body.includes('RESOURCE_EXHAUSTED') || body.includes('quota') || body.includes('API_KEY_INVALID')
 }
 
 // ---------------------------------------------------------------------------

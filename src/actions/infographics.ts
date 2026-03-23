@@ -5,15 +5,19 @@ import { createClient } from '@/lib/supabase/server'
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
-// Dispara la generación de una variante via API route (corre independientemente)
-async function triggerVariantGeneration(projectId: string, variant: 1 | 2 | 3, jobId: string) {
-  await fetch(`${BASE_URL}/api/infographics/generate`, {
+// Dispara la generación de una variante via API route — fire-and-forget (no await)
+// El Server Action no espera la respuesta; el API route corre de forma independiente.
+function triggerVariantGeneration(projectId: string, variant: 1 | 2 | 3, jobId: string, accessToken: string) {
+  fetch(`${BASE_URL}/api/infographics/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-internal-secret': INTERNAL_SECRET,
+      'x-user-token': accessToken,
     },
     body: JSON.stringify({ projectId, variant, jobId }),
+  }).catch((err: unknown) => {
+    console.error('[infographic] Error disparando variante', variant, ':', err)
   })
 }
 
@@ -23,6 +27,10 @@ export async function generateTechnicalInfographics(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  // Obtener access token para pasarlo al API route (llamada server-to-server no lleva cookies)
+  const { data: { session } } = await supabase.auth.getSession()
+  const accessToken = session?.access_token ?? ''
 
   // Verificar que el brief esté generado
   const { data: brief } = await supabase
@@ -59,12 +67,10 @@ export async function generateTechnicalInfographics(
 
   const jobIds = jobs.map((j) => j.id)
 
-  // Disparar generación via API routes (cada una es una solicitud HTTP independiente)
-  await Promise.all([
-    triggerVariantGeneration(projectId, 1, jobIds[0]),
-    triggerVariantGeneration(projectId, 2, jobIds[1]),
-    triggerVariantGeneration(projectId, 3, jobIds[2]),
-  ])
+  // Disparar generación via API routes — fire-and-forget, el Server Action no espera
+  triggerVariantGeneration(projectId, 1, jobIds[0], accessToken)
+  triggerVariantGeneration(projectId, 2, jobIds[1], accessToken)
+  triggerVariantGeneration(projectId, 3, jobIds[2], accessToken)
 
   return { data: { jobIds } }
 }
@@ -131,6 +137,9 @@ export async function retryInfographicVariant(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
+  const { data: { session } } = await supabase.auth.getSession()
+  const accessToken = session?.access_token ?? ''
+
   const { data: job, error } = await supabase
     .from('generation_jobs')
     .insert({
@@ -144,7 +153,7 @@ export async function retryInfographicVariant(
 
   if (error || !job) return { error: error?.message ?? 'Error' }
 
-  await triggerVariantGeneration(projectId, variant, job.id)
+  triggerVariantGeneration(projectId, variant, job.id, accessToken)
 
   return { data: { jobId: job.id } }
 }

@@ -181,6 +181,57 @@ export async function getOpenRouterBalance(): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Resumen de uso AI por proyecto (para el widget en las páginas de flujo)
+// ---------------------------------------------------------------------------
+
+export interface ProjectAiSummary {
+  totalTokens: number
+  totalCostUsd: number
+  totalGenerations: number
+  byTaskType: {
+    storyboard: number
+    infographics: number
+  }
+}
+
+export async function getProjectAiSummary(
+  projectId: string
+): Promise<{ data: ProjectAiSummary } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data, error } = await supabase
+    .from('ai_usage_logs')
+    .select('task_type, total_tokens, cost_usd')
+    .eq('project_id', projectId)
+
+  if (error) return { error: error.message }
+
+  const rows = data ?? []
+  let totalTokens = 0
+  let totalCostUsd = 0
+  let storyboard = 0
+  let infographics = 0
+
+  for (const row of rows) {
+    totalTokens += row.total_tokens ?? 0
+    totalCostUsd += Number(row.cost_usd ?? 0)
+    if (row.task_type?.startsWith('storyboard')) storyboard++
+    if (row.task_type?.startsWith('infographic')) infographics++
+  }
+
+  return {
+    data: {
+      totalTokens,
+      totalCostUsd,
+      totalGenerations: rows.length,
+      byTaskType: { storyboard, infographics },
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Último log de un proyecto/tipo (para el badge en UI)
 // ---------------------------------------------------------------------------
 

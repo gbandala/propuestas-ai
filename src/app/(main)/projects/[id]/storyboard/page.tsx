@@ -7,6 +7,7 @@ import { getStoryboard, generateStoryboard, approveStoryboard } from '@/actions/
 import { StoryboardReviewer } from '@/features/storyboard/components'
 import { AiModelBadge } from '@/shared/components/AiModelBadge'
 import { getLastAiLog } from '@/actions/ai-usage'
+import { ProjectAiUsageWidget } from '@/shared/components/ProjectAiUsageWidget'
 import type { StoryboardType } from '@/features/storyboard/types'
 
 interface StoryboardPageProps {
@@ -83,7 +84,7 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <Link href={`/projects/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
               ← {project.name}
@@ -99,6 +100,9 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
                 <AiModelBadge log={lastLog} />
               </div>
             )}
+          </div>
+          <div className="hidden shrink-0 sm:block">
+            <ProjectAiUsageWidget projectId={id} />
           </div>
         </div>
 

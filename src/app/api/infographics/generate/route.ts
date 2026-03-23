@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { generateImage } from '@/lib/ai-client'
 import { buildTechnicalPrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
@@ -34,7 +34,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { projectId, variant, jobId } = body
-  const supabase = await createClient()
+
+  // Usar el token del usuario pasado desde el Server Action para respetar RLS
+  const userToken = req.headers.get('x-user-token') ?? ''
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${userToken}` } } }
+  )
 
   // Obtener user_id del proyecto para el log
   const { data: project } = await supabase
