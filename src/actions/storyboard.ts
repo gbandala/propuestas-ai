@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { generateText } from '@/lib/ai-client'
 import type { StoryboardType } from '@/features/storyboard/types'
 
 export async function getStoryboard(
@@ -48,7 +49,6 @@ export async function generateStoryboard(
   ])
 
   if (!briefResult.data) {
-    console.error('[Storyboard] generateStoryboard: brief no encontrado para proyecto', projectId)
     return { error: 'El brief tecnico no existe. Completa el formulario primero.' }
   }
 
@@ -67,7 +67,18 @@ export async function generateStoryboard(
 
   const nextVersion = (existing?.version ?? 0) + 1
 
-  const content = buildStoryboardContent(type, stepData, brandMarkdown, comments, nextVersion)
+  // Generar contenido con IA
+  let content: string
+  let aiMeta: import('@/lib/ai-client').AiMeta | null = null
+  try {
+    const result = await generateStoryboardWithAI(type, stepData, brandMarkdown, comments, nextVersion)
+    content = result.text
+    aiMeta = result.meta
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error generando storyboard con IA'
+    console.error('[Storyboard] generateStoryboardWithAI error:', msg)
+    return { error: msg }
+  }
 
   const { data, error } = await supabase
     .from('storyboards')
@@ -85,6 +96,27 @@ export async function generateStoryboard(
     console.error('[Storyboard] insert error:', error.message, { projectId, type })
     return { error: error.message }
   }
+
+  // Guardar log de uso AI (no bloquea el flujo si falla)
+  if (aiMeta) {
+    const taskType = type === 'technical' ? 'storyboard_technical' : 'storyboard_commercial'
+    supabase.from('ai_usage_logs').insert({
+      project_id: projectId,
+      user_id: user.id,
+      task_type: taskType,
+      provider: aiMeta.provider,
+      model: aiMeta.model,
+      prompt_tokens: aiMeta.promptTokens,
+      completion_tokens: aiMeta.completionTokens,
+      total_tokens: aiMeta.totalTokens,
+      latency_ms: aiMeta.latencyMs,
+      is_revision: !!comments,
+      revision_notes: comments ?? null,
+    }).then(({ error: logError }) => {
+      if (logError) console.warn('[Storyboard] ai_usage_logs insert error:', logError.message)
+    })
+  }
+
   return { data }
 }
 
@@ -107,375 +139,152 @@ export async function approveStoryboard(
 }
 
 // ---------------------------------------------------------------------------
-// Builder del contenido del storyboard
+// Generación de storyboard con IA
 // ---------------------------------------------------------------------------
 
-function buildStoryboardContent(
+async function generateStoryboardWithAI(
+  type: StoryboardType,
+  stepData: Record<string, unknown>,
+  brandMarkdown: string,
+  comments: string | undefined,
+  version: number
+): Promise<import('@/lib/ai-client').AiTextResult> {
+  const systemPrompt = buildSystemPrompt(type)
+  const userPrompt = buildUserPrompt(type, stepData, brandMarkdown, comments, version)
+  return generateText(systemPrompt, userPrompt)
+}
+
+function buildSystemPrompt(type: StoryboardType): string {
+  const date = new Date().toLocaleDateString('es-MX', { dateStyle: 'long' })
+
+  if (type === 'technical') {
+    return `Eres un arquitecto de software senior experto en comunicación visual técnica.
+Tu tarea es generar un STORYBOARD TECNICO detallado en formato Markdown para propuestas de software.
+
+El storyboard describe con precisión 3 infografías técnicas y 10 slides de presentación.
+Para cada elemento debes especificar: objetivo, audiencia, layout, paleta de colores, elementos visuales y texto exacto.
+
+Hoy es ${date}. Responde SOLO con el storyboard en Markdown, sin explicaciones previas ni texto adicional.
+
+Formato requerido:
+- Encabezado con nombre del proyecto, versión y estado
+- Sección "INFOGRAFIAS TECNICAS (3 variantes)" con Infografia 1, 2 y 3
+- Sección "PRESENTACION TECNICA (10 slides)" con Slide 1 al 10
+- Cada infografía debe tener: Objetivo, Audiencia, Layout, Dimensiones, Paleta de colores (con hex exactos del brief), Elementos visuales, Texto en imagen
+- Cada slide debe tener: Tipo, Titulo, Contenido (bullets concretos extraídos del brief), Visual
+
+Usa información REAL del brief técnico proporcionado. No uses placeholders genéricos.
+Al final del documento agrega una línea: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
+  }
+
+  return `Eres un consultor comercial senior experto en propuestas de valor y comunicación ejecutiva.
+Tu tarea es generar un STORYBOARD COMERCIAL detallado en formato Markdown para propuestas de software.
+
+El storyboard describe con precisión 4 infografías de ROI/roadmap y 10 slides de presentación ejecutiva.
+Para cada elemento debes especificar: objetivo, audiencia, layout, paleta de colores, elementos visuales y datos concretos.
+
+Hoy es ${date}. Responde SOLO con el storyboard en Markdown, sin explicaciones previas ni texto adicional.
+
+Formato requerido:
+- Encabezado con nombre del proyecto, versión y estado
+- Sección "INFOGRAFIAS COMERCIALES — ROI (2 variantes)" con ROI-A y ROI-B
+- Sección "INFOGRAFIAS COMERCIALES — ROADMAP (2 variantes)" con Roadmap-A y Roadmap-B
+- Sección "PRESENTACION COMERCIAL (10 slides)" con Slide 1 al 10
+- Cada infografía debe tener: Objetivo, Layout, Dimensiones, Paleta de colores (con hex), Elementos visuales con datos reales del proyecto
+- Cada slide debe tener: Tipo, Titulo, Contenido con métricas/beneficios reales del proyecto, Visual
+
+Usa información REAL del brief proporcionado. Los números, beneficios y métricas deben ser específicos al proyecto.
+Al final del documento agrega una línea: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
+}
+
+function buildUserPrompt(
   type: StoryboardType,
   stepData: Record<string, unknown>,
   brandMarkdown: string,
   comments: string | undefined,
   version: number
 ): string {
-  const date = new Date().toLocaleDateString('es-MX', { dateStyle: 'long' })
-  const projectName = (stepData.step1 as Record<string, string> | undefined)?.project_name ?? 'Proyecto'
-  const clientName = (stepData.step1 as Record<string, string> | undefined)?.client_name ?? 'Cliente'
+  const step1 = stepData.step1 as Record<string, string> | undefined
+  const step2 = stepData.step2 as Record<string, string> | undefined
+  const step3 = stepData.step3 as Record<string, string> | undefined
+  const step4 = stepData.step4 as Record<string, string> | undefined
+  const step5 = stepData.step5 as Record<string, unknown> | undefined
 
-  const commentsNote = comments
-    ? `\n> **Cambios solicitados (v${version}):** ${comments}\n`
-    : ''
+  const projectName = step1?.projectName ?? step1?.project_name ?? 'Proyecto'
+  const clientCompany = step1?.clientCompany ?? step1?.client_name ?? 'Cliente'
+  const architectName = step1?.architectName ?? '—'
+  const date = step1?.date ? new Date(step1.date).toLocaleDateString('es-MX') : new Date().toLocaleDateString('es-MX')
+
+  const lines: string[] = []
+  lines.push(`# DATOS DEL PROYECTO`)
+  lines.push(`- Nombre: ${projectName}`)
+  lines.push(`- Cliente: ${clientCompany}`)
+  lines.push(`- Arquitecto: ${architectName}`)
+  lines.push(`- Fecha: ${date}`)
+  lines.push(`- Version storyboard: ${version}`)
+  if (comments) lines.push(`- Cambios solicitados: ${comments}`)
+  lines.push('')
+
+  if (step2) {
+    lines.push(`# CONTEXTO DEL PROBLEMA`)
+    if (step2.problem) lines.push(`- Problema: ${step2.problem}`)
+    if (step2.objective) lines.push(`- Objetivo: ${step2.objective}`)
+    if (step2.inputs) lines.push(`- Insumos: ${step2.inputs}`)
+    if (step2.expectedOutput) lines.push(`- Resultado esperado: ${step2.expectedOutput}`)
+    // compatibilidad con campos legacy
+    if (step2.description) lines.push(`- Descripcion: ${step2.description}`)
+    lines.push('')
+  }
+
+  if (step3) {
+    lines.push(`# SOLUCION TECNICA`)
+    if (step3.whatItDoes) lines.push(`- Que hace: ${step3.whatItDoes}`)
+    if (step3.requirements) lines.push(`- Que necesita: ${step3.requirements}`)
+    if (step3.outputs) lines.push(`- Que produce: ${step3.outputs}`)
+    if (step3.howToTest) lines.push(`- Como probar: ${step3.howToTest}`)
+    if (step3.failureHandling) lines.push(`- En caso de falla: ${step3.failureHandling}`)
+    if (step3.validCases) lines.push(`- Casos validos: ${step3.validCases}`)
+    // compatibilidad con campos legacy
+    if (step3.current_kpis) lines.push(`- KPIs actuales: ${step3.current_kpis}`)
+    if (step3.target_kpis) lines.push(`- KPIs objetivo: ${step3.target_kpis}`)
+    lines.push('')
+  }
+
+  if (step4) {
+    lines.push(`# DECISIONES DE ARQUITECTURA`)
+    if (step4.architectureDecisions) lines.push(`- Decisiones: ${step4.architectureDecisions}`)
+    if (step4.selfServiceConfig) lines.push(`- Config self-service: ${step4.selfServiceConfig}`)
+    if (step4.whenToEscalate) lines.push(`- Cuando escalar: ${step4.whenToEscalate}`)
+    // compatibilidad con campos legacy
+    if (step4.stack) lines.push(`- Stack tecnologico: ${step4.stack}`)
+    lines.push('')
+  }
+
+  if (step5) {
+    lines.push(`# ENTREGABLES`)
+    const deliverables = step5.deliverables as Array<{ name: string; format: string; acceptanceCriteria: string }> | undefined
+    if (deliverables && deliverables.length > 0) {
+      deliverables.forEach((d, i) => {
+        lines.push(`- Entregable ${i + 1}: ${d.name} (${d.format}) — Criterio: ${d.acceptanceCriteria}`)
+      })
+    }
+    if (typeof step5.finalAcceptanceCriteria === 'string') {
+      lines.push(`- Criterio final: ${step5.finalAcceptanceCriteria}`)
+    }
+    lines.push('')
+  }
+
+  if (brandMarkdown) {
+    lines.push(`# IDENTIDAD DE MARCA`)
+    lines.push(brandMarkdown)
+    lines.push('')
+  }
 
   if (type === 'technical') {
-    return buildTechnicalStoryboard(projectName, clientName, stepData, brandMarkdown, date, version, commentsNote)
+    lines.push(`Genera el STORYBOARD TECNICO completo (3 infografias + 10 slides) usando todos los datos anteriores.`)
+  } else {
+    lines.push(`Genera el STORYBOARD COMERCIAL completo (4 infografias ROI/roadmap + 10 slides ejecutivos) usando todos los datos anteriores.`)
   }
-  return buildCommercialStoryboard(projectName, clientName, stepData, brandMarkdown, date, version, commentsNote)
-}
 
-function buildTechnicalStoryboard(
-  projectName: string,
-  clientName: string,
-  stepData: Record<string, unknown>,
-  brandMarkdown: string,
-  date: string,
-  version: number,
-  commentsNote: string
-): string {
-  const primaryColor = extractColor(brandMarkdown, 'Primario') ?? '#2563EB'
-  const accentColor = extractColor(brandMarkdown, 'Acento') ?? '#F59E0B'
-  const bgColor = extractColor(brandMarkdown, 'Fondo') ?? '#F8FAFC'
-
-  const step2 = stepData.step2 as Record<string, unknown> | undefined
-  const step7 = stepData.step7 as Record<string, unknown> | undefined
-  const step3 = stepData.step3 as Record<string, unknown> | undefined
-
-  const problemSummary = (step2?.description as string) ?? 'Proceso manual con alta carga operativa'
-  const stack = (step7?.stack as string) ?? 'Next.js + Supabase + OpenRouter'
-  const kpiCurrent = (step3?.current_kpis as string) ?? 'Metricas actuales del cliente'
-  const kpiTarget = (step3?.target_kpis as string) ?? 'Metricas objetivo post-implementacion'
-
-  return `# Storyboard Tecnico — ${projectName} / ${clientName}
-> Version ${version} | Generado: ${date}
-> Estado: PENDIENTE DE APROBACION
-${commentsNote}
----
-
-## INFOGRAFIAS TECNICAS (3 variantes)
-
-### Infografia 1 — Diagrama de Flujo de Datos
-**Objetivo:** Mostrar como fluye la informacion entre los componentes del sistema
-**Audiencia:** Arquitectos y CTOs del cliente
-**Layout:** Horizontal LEFT→RIGHT, 4-5 bloques conectados con flechas
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Fondo: ${bgColor}
-- Bloques principales: ${primaryColor}
-- Flechas y conectores: ${accentColor}
-- Texto en bloques: #FFFFFF
-
-**Elementos visuales:**
-- Bloque 1: "Usuario / Actor" — punto de entrada del proceso
-- Bloque 2: "Frontend / App" — interfaz de interaccion
-- Bloque 3: "Backend / API" — logica de negocio y procesamiento
-- Bloque 4: "Base de Datos" — persistencia y consulta de datos
-- Bloque 5 (si aplica): "Servicio Externo / IA" — integracion externa
-- Flechas: etiquetas con el tipo de accion (solicitud, respuesta, evento)
-
-**Texto en imagen:** Solo etiquetas cortas (max 4 palabras por elemento)
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-### Infografia 2 — Arquitectura de Componentes
-**Objetivo:** Mostrar la arquitectura tecnica en capas del sistema propuesto
-**Stack de referencia:** ${stack}
-**Layout:** Vertical TOP→DOWN, 3 capas (Frontend / Backend / Datos)
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Fondo: ${bgColor}
-- Capa Frontend: ${primaryColor} con opacidad 15%
-- Capa Backend: ${primaryColor} con opacidad 30%
-- Capa Datos: ${primaryColor} con opacidad 50%
-- Bordes de componentes: ${primaryColor}
-
-**Elementos visuales:**
-- Capa 1 (Frontend): componentes de UI / Web / Mobile
-- Capa 2 (Backend): APIs, servicios, integraciones
-- Capa 3 (Datos): base de datos, storage, cache
-- Conectores verticales entre capas con descripcion del protocolo
-
-**Texto en imagen:** Nombre del componente + tecnologia (ej: "API Gateway / Next.js")
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-### Infografia 3 — Timeline de Fases
-**Objetivo:** Mostrar el roadmap de implementacion de forma visual
-**Layout:** Horizontal, 4 fases en linea de tiempo
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Linea de tiempo: ${accentColor}
-- Puntos de fase: ${primaryColor}
-- Fondo de etiquetas: ${bgColor}
-- Texto: #0F172A
-
-**Elementos visuales:**
-- Fase 1: Discovery / Diseno — duracion y entregable clave
-- Fase 2: Implementacion MVP — duracion y entregable clave
-- Fase 3: Pruebas y Ajustes — duracion y entregable clave
-- Fase 4: Lanzamiento y Soporte — duracion y entregable clave
-- Linea de tiempo horizontal con hitos marcados
-
-**Texto en imagen:** Nombre de fase + duracion (ej: "Diseno — 2 semanas")
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-## PRESENTACION TECNICA (10 slides)
-
-### Slide 1 — Portada
-**Tipo:** Cover
-**Titulo:** "${projectName}"
-**Subtitulo:** "Propuesta Tecnica para ${clientName}"
-**Fecha:** ${date}
-**Fondo:** Gradiente suave usando colores de marca
-**Logo:** Centrado en la parte superior
-
-### Slide 2 — El Problema
-**Tipo:** Problema / Dolor
-**Titulo:** "El Desafio Actual"
-**Contenido:** 3 bullets con los puntos de dolor principales
-**Dato de referencia:** ${problemSummary}
-**Visual:** Icono de alerta o proceso roto
-
-### Slide 3 — Nuestra Solucion
-**Tipo:** Propuesta de valor
-**Titulo:** "La Solucion Propuesta"
-**Contenido:** Una oracion de valor + 3 beneficios clave medibles
-**Visual:** Icono de check o flecha de transformacion
-
-### Slide 4 — Arquitectura Tecnica
-**Tipo:** Diagrama tecnico
-**Titulo:** "Arquitectura de la Solucion"
-**Contenido:** Referencia a Infografia 2 (arquitectura de componentes)
-**Stack visible:** ${stack}
-
-### Slide 5 — Funcionalidades MVP
-**Tipo:** Tabla / Lista priorizada
-**Titulo:** "Alcance del MVP"
-**Contenido:** Funcionalidades Must/Should/Could en tabla simple
-**Visual:** Tabla con 3 columnas y codigos de color por prioridad
-
-### Slide 6 — Integraciones
-**Tipo:** Diagrama de conectores
-**Titulo:** "Integraciones y Sistemas"
-**Contenido:** Sistemas externos conectados, APIs, fuentes de datos
-**Visual:** Referencia a Infografia 1 (flujo de datos)
-
-### Slide 7 — Plan de Implementacion
-**Tipo:** Timeline visual
-**Titulo:** "Roadmap de Implementacion"
-**Contenido:** Referencia a Infografia 3 (timeline de fases)
-**Duracion total:** estimada segun fases del brief
-
-### Slide 8 — Inversion por Fase
-**Tipo:** Tabla de presupuesto
-**Titulo:** "Detalle de Inversion"
-**Contenido:** Tabla con fases, recursos y costos
-**Visual:** Tabla con totales y subtotales claros
-
-### Slide 9 — ROI Esperado
-**Tipo:** Metricas de retorno
-**Titulo:** "Impacto Esperado"
-**Actual:** ${kpiCurrent}
-**Objetivo:** ${kpiTarget}
-**Visual:** Comparativa antes/despues con flechas de mejora
-
-### Slide 10 — Proximos Pasos
-**Tipo:** CTA / Cierre
-**Titulo:** "Como Avanzamos"
-**Contenido:** 3 acciones concretas con responsable y fecha tentativa
-**CTA:** Contacto del arquitecto responsable
-
----
-
-*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*
-`
-}
-
-function buildCommercialStoryboard(
-  projectName: string,
-  clientName: string,
-  _stepData: Record<string, unknown>,
-  brandMarkdown: string,
-  date: string,
-  version: number,
-  commentsNote: string
-): string {
-  const primaryColor = extractColor(brandMarkdown, 'Primario') ?? '#2563EB'
-  const accentColor = extractColor(brandMarkdown, 'Acento') ?? '#F59E0B'
-  const bgColor = extractColor(brandMarkdown, 'Fondo') ?? '#F8FAFC'
-
-  return `# Storyboard Comercial — ${projectName} / ${clientName}
-> Version ${version} | Generado: ${date}
-> Estado: PENDIENTE DE APROBACION
-${commentsNote}
----
-
-## INFOGRAFIAS COMERCIALES — ROI (2 variantes)
-
-### Infografia ROI-A — Timeline de Retorno
-**Objetivo:** Mostrar la curva de inversion vs retorno en el tiempo
-**Layout:** Grafica de lineas con dos curvas (costo acumulado vs retorno acumulado)
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Fondo: ${bgColor}
-- Curva de costo: #EF4444 (zona roja = inversion)
-- Curva de retorno: #22C55E (zona verde = ganancia)
-- Punto de equilibrio: ${accentColor} con etiqueta "Break-even"
-- Eje X: meses / trimestres
-
-**Elementos visuales:**
-- Eje X: timeline (0 a 12 o 24 meses segun proyecto)
-- Eje Y: valor en dolares o porcentaje
-- Zona roja: periodo de inversion inicial
-- Zona verde: periodo de retorno positivo
-- Anotacion: punto de equilibrio y ROI final proyectado
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-### Infografia ROI-B — Comparativa Antes / Despues
-**Objetivo:** Mostrar el contraste de metricas clave antes y despues de la solucion
-**Layout:** Dos columnas side-by-side (ANTES en rojo / DESPUES en verde)
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Columna ANTES: fondo #FEF2F2, texto #DC2626
-- Columna DESPUES: fondo #F0FDF4, texto #16A34A
-- Titulos de columna: ${primaryColor}
-
-**Elementos visuales:**
-- 4-5 metricas comparadas en formato: icono + numero + etiqueta
-- Flechas de mejora entre columnas indicando % de cambio
-- Metrica de impacto principal destacada (mas grande)
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-## INFOGRAFIAS COMERCIALES — ROADMAP (2 variantes)
-
-### Infografia Roadmap-A — Timeline Horizontal Ejecutivo
-**Objetivo:** Mostrar las fases del proyecto de forma limpia para un publico no tecnico
-**Layout:** Timeline horizontal con 4 puntos de fase, iconos grandes
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Linea de tiempo: ${primaryColor}
-- Circulos de fase: alternar ${primaryColor} y ${accentColor}
-- Etiquetas: sobre fondo ${bgColor}
-
-**Elementos visuales:**
-- 4 fases con icono representativo, nombre y duracion
-- Sin detalles tecnicos — solo nombres ejecutivos (ej: "Inicio", "Construccion", "Pruebas", "Lanzamiento")
-- Hito de entrega final resaltado
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-### Infografia Roadmap-B — Gantt Simplificado
-**Objetivo:** Mostrar las actividades por fase con barras de duracion
-**Layout:** Tabla Gantt con filas de actividad y columnas de tiempo (semanas/meses)
-**Dimensiones:** 800×600px
-
-**Paleta de colores:**
-- Barras de actividad: ${primaryColor}
-- Barras de hito: ${accentColor}
-- Filas alternas: blanco y ${bgColor}
-- Cabecera: ${primaryColor} con texto blanco
-
-**Elementos visuales:**
-- 8-12 actividades distribuidas en 4 fases
-- Duracion de cada barra proporcional al tiempo
-- Hitos marcados con diamante en ${accentColor}
-**Logo:** Esquina inferior derecha, 60px de alto
-
----
-
-## PRESENTACION COMERCIAL (10 slides)
-
-### Slide 1 — Portada Ejecutiva
-**Tipo:** Cover minimalista
-**Titulo:** "Propuesta Comercial"
-**Subtitulo:** "${clientName}"
-**Fecha:** ${date}
-**Fondo:** Color primario de marca con logo centrado
-
-### Slide 2 — Resumen Ejecutivo
-**Tipo:** Executive Summary
-**Titulo:** "En Resumen"
-**Contenido:** El problema en 2 oraciones + la solucion en 1 oracion + el ROI esperado
-**Visual:** Ninguno — solo tipografia limpia
-
-### Slide 3 — Propuesta de Valor
-**Tipo:** Value proposition
-**Titulo:** "Lo Que Lograras"
-**Contenido:** 3 beneficios cuantificados con iconos grandes
-**Visual:** 3 cards con icono + numero + descripcion breve
-
-### Slide 4 — Nuestro Enfoque
-**Tipo:** Metodologia
-**Titulo:** "Como Lo Hacemos"
-**Contenido:** 4 pasos del proceso (no tecnico — centrado en el cliente)
-**Visual:** Iconos de proceso en horizontal
-
-### Slide 5 — Entregables
-**Tipo:** Lista de resultados
-**Titulo:** "Que Recibiras"
-**Contenido:** Lista de entregables por fase con checkmarks
-**Visual:** Tabla simple con fase y entregable
-
-### Slide 6 — Roadmap
-**Tipo:** Visual de timeline
-**Titulo:** "Plan de Trabajo"
-**Contenido:** Referencia a Infografia Roadmap-A
-**Duracion total:** resaltada
-
-### Slide 7 — Inversion
-**Tipo:** Tabla de costos
-**Titulo:** "Inversion por Fase"
-**Contenido:** Tabla con fases, descripcion y costo — con total destacado
-**Visual:** Tabla con fila de total en color acento
-
-### Slide 8 — Retorno Esperado
-**Tipo:** ROI visual
-**Titulo:** "Tu Retorno de Inversion"
-**Contenido:** Referencia a Infografia ROI-A + metrica principal de ROI
-**Visual:** Numero grande del ROI % con contexto temporal
-
-### Slide 9 — Por Que Nosotros
-**Tipo:** Diferenciadores
-**Titulo:** "Por Que Elegirnos"
-**Contenido:** 3-4 diferenciadores concretos (experiencia, casos de exito, metodologia)
-**Visual:** Logos de clientes anteriores o iconos de logros
-
-### Slide 10 — Siguiente Paso
-**Tipo:** CTA de cierre
-**Titulo:** "Como Avanzamos"
-**Contenido:** Una accion clara con fecha limite sugerida + datos de contacto
-**Visual:** Boton o destacado visual del CTA
-
----
-
-*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*
-`
-}
-
-function extractColor(brandMarkdown: string, colorName: string): string | null {
-  const regex = new RegExp(`${colorName}:\\s*(#[0-9A-Fa-f]{6})`)
-  const match = brandMarkdown.match(regex)
-  return match ? match[1] : null
+  return lines.join('\n')
 }

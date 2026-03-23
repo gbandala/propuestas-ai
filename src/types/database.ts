@@ -1,4 +1,11 @@
 export type UserRole = 'architect' | 'commercial' | 'admin'
+export type AiProvider = 'gemini' | 'openrouter'
+export type AiTaskType =
+  | 'storyboard_technical'
+  | 'storyboard_commercial'
+  | 'infographic_v1'
+  | 'infographic_v2'
+  | 'infographic_v3'
 export type ProjectStatus = 'draft' | 'in_progress' | 'completed' | 'archived'
 export type InfographicType = 'technical' | 'roi' | 'roadmap'
 export type PresentationType = 'technical' | 'commercial'
@@ -102,6 +109,23 @@ export interface GenerationJob {
   updated_at: string
 }
 
+export interface AiUsageLog {
+  id: string
+  project_id: string
+  user_id: string | null
+  task_type: AiTaskType
+  provider: AiProvider
+  model: string
+  prompt_tokens: number | null
+  completion_tokens: number | null
+  total_tokens: number | null
+  cost_usd: number | null
+  latency_ms: number | null
+  is_revision: boolean
+  revision_notes: string | null
+  created_at: string
+}
+
 export interface Download {
   id: string
   project_id: string
@@ -162,6 +186,11 @@ export interface Database {
         Row: Download
         Insert: Omit<Download, 'id'>
         Update: Partial<Omit<Download, 'id'>>
+      }
+      ai_usage_logs: {
+        Row: AiUsageLog
+        Insert: Omit<AiUsageLog, 'id' | 'created_at'>
+        Update: Partial<Omit<AiUsageLog, 'id' | 'created_at'>>
       }
     }
   }

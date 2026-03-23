@@ -1,7 +1,7 @@
 # PRP-003: Infographic Generation — Generación Async de Infografías con IA
 
-> **Estado**: PENDIENTE
-> **Fecha**: 2026-03-18
+> **Estado**: IMPLEMENTADO — Pendiente QA manual
+> **Fecha**: 2026-03-18 | **Completado**: 2026-03-22
 > **Proyecto**: PropuestasAI
 
 ---
@@ -201,7 +201,13 @@ export async function retryInfographicVariant(jobId: string, variant: number): P
 > Esta sección CRECE con cada error encontrado durante la implementación.
 > El conocimiento persiste para futuros PRPs. El mismo error NUNCA ocurre dos veces.
 
-*(Vacío — se llena durante la implementación)*
+- OpenRouter SDK wraps params en `chatGenerationParams: { model, messages, modalities }` — NO flat como en el ejemplo de docs
+- `message.images[0].imageUrl.url` es camelCase (no `image_url`) en el SDK
+- Fire-and-forget en Server Actions cancela promesas → usar API Route para trabajo long-running
+- OPENROUTER_API_KEY no funciona con endpoint de Gemini directo — son keys distintas
+- Gemini API retorna `usageMetadata.promptTokenCount/candidatesTokenCount/totalTokenCount` para tracking de tokens
+- El modelo en OpenRouter es `google/gemini-3.1-flash-image-preview`; en Gemini directo es `gemini-3.1-flash-image-preview` (sin prefijo google/)
+- ai_usage_logs insert debe ser fire-and-forget (.then() sin await) para no bloquear generación
 
 ---
 

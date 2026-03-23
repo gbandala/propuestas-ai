@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getProjectById } from '@/actions/projects'
 import { getStoryboard, generateStoryboard, approveStoryboard } from '@/actions/storyboard'
 import { StoryboardReviewer } from '@/features/storyboard/components'
+import { AiModelBadge } from '@/shared/components/AiModelBadge'
+import { getLastAiLog } from '@/actions/ai-usage'
 import type { StoryboardType } from '@/features/storyboard/types'
 
 interface StoryboardPageProps {
@@ -33,10 +35,17 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
     redirect(`/projects/${id}`)
   }
 
-  const [projectResult, storyboardResult] = await Promise.all([
+  const taskTypes = type === 'technical'
+    ? ['storyboard_technical']
+    : ['storyboard_commercial']
+
+  const [projectResult, storyboardResult, lastLogResult] = await Promise.all([
     getProjectById(id),
     getStoryboard(id, type),
+    getLastAiLog(id, taskTypes),
   ])
+
+  const lastLog = 'data' in lastLogResult ? lastLogResult.data : null
 
   if ('error' in projectResult) notFound()
 
@@ -85,6 +94,11 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
             <p className="mt-1 text-sm text-gray-500">
               Borrador textual de las piezas visuales. Apruebalo antes de generar las imagenes con IA.
             </p>
+            {lastLog && (
+              <div className="mt-2">
+                <AiModelBadge log={lastLog} />
+              </div>
+            )}
           </div>
         </div>
 
