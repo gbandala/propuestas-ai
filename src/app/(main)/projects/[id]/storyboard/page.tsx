@@ -29,15 +29,20 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
     .eq('id', user.id)
     .single()
 
-  const type: StoryboardType = typeParam === 'commercial' ? 'commercial' : 'technical'
+  const type: StoryboardType =
+    typeParam === 'commercial' ? 'commercial' :
+    typeParam === 'infographic' ? 'infographic' :
+    'technical'
 
-  // Comercial no puede ver storyboard tecnico
-  if (profile?.role === 'commercial' && type === 'technical') {
+  // Comercial no puede ver storyboard tecnico ni de infografias
+  if (profile?.role === 'commercial' && (type === 'technical' || type === 'infographic')) {
     redirect(`/projects/${id}`)
   }
 
   const taskTypes = type === 'technical'
     ? ['storyboard_technical']
+    : type === 'infographic'
+    ? ['storyboard_infographic']
     : ['storyboard_commercial']
 
   const [projectResult, storyboardResult, lastLogResult] = await Promise.all([
@@ -75,11 +80,13 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
     revalidatePath(`/projects/${id}/storyboard`)
   }
 
-  const nextHref = type === 'technical'
-    ? `/projects/${id}/technical`
+  const nextHref = type === 'infographic'
+    ? `/projects/${id}/infographics`
+    : type === 'technical'
+    ? `/projects/${id}/presentation/technical`
     : `/projects/${id}/commercial`
 
-  const typeLabel = type === 'technical' ? 'Tecnico' : 'Comercial'
+  const typeLabel = type === 'technical' ? 'de Presentacion' : type === 'infographic' ? 'de Infografias' : 'Comercial'
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -108,6 +115,7 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
 
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <StoryboardReviewer
+            key={storyboardData?.id ?? 'empty'}
             projectId={id}
             type={type}
             storyboard={storyboardData ? {
@@ -131,7 +139,9 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
               href={nextHref}
               className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              Continuar a generar infografias →
+              {type === 'infographic' ? 'Continuar a generar infografias →' :
+               type === 'technical' ? 'Continuar a la presentacion →' :
+               'Continuar a propuesta comercial →'}
             </Link>
           </div>
         )}

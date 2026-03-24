@@ -99,7 +99,7 @@ export async function generateStoryboard(
 
   // Guardar log de uso AI (no bloquea el flujo si falla)
   if (aiMeta) {
-    const taskType = type === 'technical' ? 'storyboard_technical' : 'storyboard_commercial'
+    const taskType = type === 'technical' ? 'storyboard_technical' : type === 'infographic' ? 'storyboard_infographic' : 'storyboard_commercial'
     supabase.from('ai_usage_logs').insert({
       project_id: projectId,
       user_id: user.id,
@@ -194,24 +194,70 @@ async function generateStoryboardWithAI(
 function buildSystemPrompt(type: StoryboardType): string {
   const date = new Date().toLocaleDateString('es-MX', { dateStyle: 'long' })
 
+  if (type === 'infographic') {
+    return `Eres un arquitecto de software senior experto en comunicación visual técnica.
+Tu tarea es generar el STORYBOARD DE INFOGRAFIAS TECNICAS en formato Markdown para una propuesta de software.
+
+Describe con precisión SOLO las 3 infografías técnicas (NO slides de presentación).
+Para cada infografía especifica: objetivo, audiencia, layout, paleta de colores con hex exactos, elementos visuales y texto en imagen.
+
+Hoy es ${date}. Responde SOLO con el storyboard en Markdown, sin explicaciones previas ni texto adicional.
+
+Formato requerido — usa EXACTAMENTE esta estructura de headers:
+
+### Encabezado
+(nombre del proyecto, version, estado, fecha)
+
+### Infografia 1 — [titulo descriptivo]
+- **Objetivo:** ...
+- **Audiencia:** ...
+- **Layout:** ...
+- **Dimensiones:** 1024x768px
+- **Paleta:** (hex exactos del brief)
+- **Elementos visuales:** (que aparece y donde)
+- **Texto en imagen:** (solo etiquetas cortas)
+
+### Infografia 2 — [titulo descriptivo]
+(misma estructura)
+
+### Infografia 3 — [titulo descriptivo]
+(misma estructura)
+
+IMPORTANTE: Usa exactamente tres signos # (###) para cada infografia, NO uses cuatro # (####).
+Infografia 1 debe ser el flujo de datos o proceso principal.
+Infografia 2 debe ser la arquitectura tecnica o stack de componentes.
+Infografia 3 debe ser el timeline de implementacion o entregables.
+
+Usa información REAL del brief técnico proporcionado. No uses placeholders genéricos.
+Al final agrega: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
+  }
+
   if (type === 'technical') {
     return `Eres un arquitecto de software senior experto en comunicación visual técnica.
-Tu tarea es generar un STORYBOARD TECNICO detallado en formato Markdown para propuestas de software.
+Tu tarea es generar el STORYBOARD DE PRESENTACION TECNICA en formato Markdown para una propuesta de software.
 
-El storyboard describe con precisión 3 infografías técnicas y 10 slides de presentación.
-Para cada elemento debes especificar: objetivo, audiencia, layout, paleta de colores, elementos visuales y texto exacto.
+Describe con precisión SOLO los 10 slides de presentación (NO infografías — esas ya están en una etapa anterior).
+Para cada slide especifica: tipo, título, contenido concreto y descripción visual.
 
 Hoy es ${date}. Responde SOLO con el storyboard en Markdown, sin explicaciones previas ni texto adicional.
 
 Formato requerido:
 - Encabezado con nombre del proyecto, versión y estado
-- Sección "INFOGRAFIAS TECNICAS (3 variantes)" con Infografia 1, 2 y 3
-- Sección "PRESENTACION TECNICA (10 slides)" con Slide 1 al 10
-- Cada infografía debe tener: Objetivo, Audiencia, Layout, Dimensiones, Paleta de colores (con hex exactos del brief), Elementos visuales, Texto en imagen
-- Cada slide debe tener: Tipo, Titulo, Contenido (bullets concretos extraídos del brief), Visual
+- Sección "PRESENTACION TECNICA (10 slides)" con Slide 1 al 10:
+  - Slide 1: Portada
+  - Slide 2: El Problema
+  - Slide 3: Objetivo y Alcance
+  - Slide 4: Solucion Tecnica
+  - Slide 5: Arquitectura y Stack
+  - Slide 6: Infografia Tecnica (referencia a imagen generada)
+  - Slide 7: Decisiones de Arquitectura
+  - Slide 8: Entregables
+  - Slide 9: Criterios de Exito
+  - Slide 10: Proximos Pasos
+- Cada slide debe tener: Tipo, Titulo, Contenido (bullets concretos extraidos del brief), Visual (descripcion del layout y elementos visuales CSS — sin emojis)
 
 Usa información REAL del brief técnico proporcionado. No uses placeholders genéricos.
-Al final del documento agrega una línea: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
+Al final agrega: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
   }
 
   return `Eres un consultor comercial senior experto en propuestas de valor y comunicación ejecutiva.
@@ -317,8 +363,10 @@ function buildUserPrompt(
     lines.push('')
   }
 
-  if (type === 'technical') {
-    lines.push(`Genera el STORYBOARD TECNICO completo (3 infografias + 10 slides) usando todos los datos anteriores.`)
+  if (type === 'infographic') {
+    lines.push(`Genera el STORYBOARD DE INFOGRAFIAS TECNICAS (solo las 3 infografias) usando todos los datos anteriores.`)
+  } else if (type === 'technical') {
+    lines.push(`Genera el STORYBOARD DE PRESENTACION TECNICA (solo los 10 slides) usando todos los datos anteriores.`)
   } else {
     lines.push(`Genera el STORYBOARD COMERCIAL completo (4 infografias ROI/roadmap + 10 slides ejecutivos) usando todos los datos anteriores.`)
   }

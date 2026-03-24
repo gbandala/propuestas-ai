@@ -26,16 +26,19 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const isArchitect = profile?.role === 'architect' || profile?.role === 'admin' || project.user_id === user!.id
   const technicalDone = !!project.technical_completed_at
 
-  // Verificar brand identity y storyboard configurados
-  const [brandResult, storyboardResult, presentationResult] = await Promise.all([
+  // Verificar brand identity, storyboards y estado de infografias
+  const [brandResult, infographicStoryboardResult, presentationStoryboardResult, infographicsResult, presentationResult] = await Promise.all([
     supabase.from('brand_identity').select('id').eq('project_id', id).maybeSingle(),
+    supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'infographic').order('version', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'technical').order('version', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('infographics').select('id, selected').eq('project_id', id),
     supabase.from('presentations').select('id, html_content').eq('project_id', id).eq('type', 'technical').maybeSingle(),
   ])
 
   const hasBrand = !!brandResult.data
-  const hasStoryboard = !!storyboardResult.data
-  const storyboardApproved = !!storyboardResult.data?.approved_at
+  const infographicStoryboardApproved = !!infographicStoryboardResult.data?.approved_at
+  const presentationStoryboardApproved = !!presentationStoryboardResult.data?.approved_at
+  const hasInfographics = (infographicsResult.data?.length ?? 0) > 0
   const hasPresentation = !!presentationResult.data?.html_content
 
   const steps = [
@@ -59,23 +62,43 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     },
     {
       number: 3,
-      label: 'Storyboard Tecnico',
-      description: 'Borrador textual de infografias y slides. Revisar y aprobar antes de generar.',
-      done: storyboardApproved,
-      href: `/projects/${id}/storyboard?type=technical`,
+      label: 'Storyboard de Infografias',
+      description: 'Borrador textual de las 3 piezas visuales. Aprobar antes de generar.',
+      done: infographicStoryboardApproved,
+      href: `/projects/${id}/storyboard?type=infographic`,
       visible: isArchitect,
       locked: !technicalDone,
       lockedReason: 'Requiere el brief tecnico completado.',
     },
     {
       number: 4,
-      label: 'Infografias y Presentacion Tecnica',
-      description: '3 variantes de infografias + presentacion HTML de 10 slides.',
-      done: hasPresentation,
-      href: storyboardApproved ? `/projects/${id}/presentation/technical` : `/projects/${id}/technical`,
+      label: 'Infografias Tecnicas',
+      description: '3 variantes con IA. Puedes seleccionar una para incluirla en la presentacion.',
+      done: hasInfographics,
+      href: `/projects/${id}/infographics`,
       visible: isArchitect,
-      locked: !storyboardApproved,
-      lockedReason: 'Requiere el storyboard tecnico aprobado.',
+      locked: !infographicStoryboardApproved,
+      lockedReason: 'Requiere el storyboard de infografias aprobado.',
+    },
+    {
+      number: 5,
+      label: 'Storyboard de Presentacion',
+      description: 'Borrador textual de los 10 slides. Aprobar antes de generar la presentacion.',
+      done: presentationStoryboardApproved,
+      href: `/projects/${id}/storyboard?type=technical`,
+      visible: isArchitect,
+      locked: !hasInfographics,
+      lockedReason: 'Requiere tener infografias generadas.',
+    },
+    {
+      number: 6,
+      label: 'Presentacion Tecnica',
+      description: 'Presentacion HTML de 10 slides generada con IA.',
+      done: hasPresentation,
+      href: `/projects/${id}/presentation/technical`,
+      visible: isArchitect,
+      locked: !presentationStoryboardApproved,
+      lockedReason: 'Requiere el storyboard de presentacion aprobado.',
     },
   ]
 
@@ -109,21 +132,19 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
                   <div
                     key={step.number}
                     className={`rounded-lg border-2 p-5 transition-colors ${
-                      step.done
-                        ? 'border-green-200 bg-green-50'
-                        : step.locked
+                      step.locked
                         ? 'border-gray-200 bg-gray-50 opacity-60'
-                        : hasStoryboard && step.number === 3
-                        ? 'border-yellow-200 bg-yellow-50'
+                        : step.done
+                        ? 'border-green-200 bg-green-50'
                         : 'border-blue-200 bg-blue-50'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
-                          step.done ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
+                          step.locked ? 'bg-white text-gray-400 border border-gray-300' : step.done ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
                         }`}>
-                          {step.done ? '✓' : step.number}
+                          {!step.locked && step.done ? '✓' : step.number}
                         </span>
                         <div>
                           <h3 className="font-semibold text-gray-900">{step.label}</h3>

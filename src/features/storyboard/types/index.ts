@@ -1,4 +1,4 @@
-export type StoryboardType = 'technical' | 'commercial'
+export type StoryboardType = 'technical' | 'commercial' | 'infographic'
 export type StoryboardStatus = 'idle' | 'generating' | 'ready' | 'approved'
 
 export interface StoryboardData {

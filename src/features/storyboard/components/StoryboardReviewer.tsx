@@ -87,7 +87,7 @@ export function StoryboardReviewer({
 
   const isApproved = !!storyboard?.approved_at
   const hasStoryboard = !!storyboard?.content_md
-  const typeLabel = type === 'technical' ? 'Técnico' : 'Comercial'
+  const typeLabel = type === 'infographic' ? 'de Infografias' : type === 'technical' ? 'de Presentacion' : 'Comercial'
 
   async function handleGenerate() {
     setIsGenerating(true)
@@ -204,7 +204,11 @@ export function StoryboardReviewer({
           </div>
           <h3 className="text-sm font-medium text-gray-900">Sin storyboard aun</h3>
           <p className="mt-1 text-sm text-gray-500">
-            Genera el borrador textual de las {type === 'technical' ? '3 infografias + 10 slides tecnicos' : '4 infografias + 10 slides comerciales'}.
+            {type === 'infographic'
+              ? 'Genera el borrador textual de las 3 infografias tecnicas.'
+              : type === 'technical'
+              ? 'Genera el borrador textual de los 10 slides de presentacion.'
+              : 'Genera el borrador textual de las 4 infografias + 10 slides comerciales.'}
           </p>
           <button
             onClick={handleGenerate}

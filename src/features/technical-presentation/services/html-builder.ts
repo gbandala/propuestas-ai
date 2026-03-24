@@ -16,6 +16,22 @@ REQUISITOS OBLIGATORIOS:
 7. Diseño responsive para pantallas 1280px+ (presentación de escritorio)
 8. Cada imagen de infografía que se incluya debe abrirse en lightbox al hacer click (usando JS vanilla)
 
+PROHIBICIONES VISUALES — MUY IMPORTANTE:
+- NUNCA uses emojis como elementos visuales o iconos (ni 🔧 ni 🧠 ni 📊 ni ningún otro)
+- NUNCA uses imágenes externas ni placeholder images
+- NUNCA dejes áreas vacías o "espacios para imagen" sin contenido real
+- NO uses colores genéricos grises/azules — extrae y aplica los colores reales de la brand identity
+
+ELEMENTOS VISUALES PERMITIDOS (CSS puro, sin dependencias):
+- Diagramas de flujo con divs y flechas CSS (border + ::after con content:"→")
+- Cards con sombra y borde de acento (box-shadow, border-left con color de marca)
+- Tablas estilizadas con cabecera en color primario de marca
+- Barras de progreso o porcentajes con divs y width en CSS
+- Iconos con caracteres unicode neutros: ▶ ● ◆ ✓ → ← ↑ ↓ • ─ │ ┌ ┐ └ ┘
+- Bloques de código o texto técnico con fondo oscuro y fuente monospace
+- Layouts de 2-3 columnas con CSS grid o flexbox
+- Badges/pills de tecnologías: span con background-color, border-radius, padding
+
 AUTOR Y DATOS DEL PROYECTO:
 - El nombre del arquitecto/autor viene ÚNICAMENTE de los datos del proyecto proporcionados
 - Si no hay nombre de arquitecto en los datos, omite ese campo completamente
@@ -23,22 +39,29 @@ AUTOR Y DATOS DEL PROYECTO:
 - La portada solo debe incluir: nombre del proyecto, cliente, fecha, y arquitecto (solo si está en los datos)
 
 ESTRUCTURA DE LOS 10 SLIDES:
-- Slide 1: Portada (nombre proyecto, cliente, fecha — sin texto genérico de roles)
-- Slide 2: El Problema (qué problema resuelve, contexto del cliente)
-- Slide 3: Objetivo y Alcance (qué se va a construir y sus límites)
-- Slide 4: Solución Técnica (qué hace el sistema, diagrama textual o visual)
-- Slide 5: Arquitectura (stack técnico, componentes, flujo de datos)
-- Slide 6: Infografía Técnica (embed de la imagen de infografía si hay URL, lightbox al click)
-- Slide 7: Decisiones de Arquitectura (por qué se eligieron las tecnologías)
-- Slide 8: Entregables (tabla con nombre, formato, criterio de aceptación)
-- Slide 9: Criterios de Éxito (cómo se valida que el proyecto es exitoso)
-- Slide 10: Próximos Pasos (timeline o resumen de fases de implementación)
+- Slide 1: Portada (nombre proyecto, cliente, fecha — diseño impactante con color de fondo primario de marca)
+- Slide 2: El Problema (qué problema resuelve — usa cards o bullets con iconos unicode)
+- Slide 3: Objetivo y Alcance (qué se construye — layout 2 columnas: objetivo + alcance)
+- Slide 4: Solución Técnica (qué hace el sistema — diagrama de flujo CSS con flechas)
+- Slide 5: Arquitectura (stack técnico — badges de tecnologías + diagrama de capas con divs)
+- Slide 6: Infografía Técnica (embed de la imagen si hay URL con lightbox; si no hay URL, diagrama CSS con los componentes clave)
+- Slide 7: Decisiones de Arquitectura (tabla 2 col: tecnología | razón)
+- Slide 8: Entregables (tabla con nombre, formato, criterio de aceptación — cabecera en color primario)
+- Slide 9: Criterios de Éxito (KPIs con barras de progreso CSS o cards de métricas)
+- Slide 10: Próximos Pasos (timeline horizontal con divs: fase → fecha → equipo)
 
-ESTILO:
-- Layout profesional, limpio, con suficiente espacio en blanco
-- Usa los colores de marca para: cabeceros, highlights, bullets, bordes de acento
-- Slides con estructura clara: título arriba, contenido principal en el centro
-- El indicador de slide (ej. "3 / 10") y los botones prev/next deben estar siempre visibles
+USO DE COLORES DE MARCA — OBLIGATORIO:
+- Slide 1 (portada): fondo en color primario de marca, texto blanco
+- Todos los slides: título con color primario, borde izquierdo de acento en highlights
+- Tablas: cabecera con color primario de marca
+- Bullets/pills/badges: usar colores de acento de marca
+- Fondo de slides: color de fondo de marca o blanco/gris muy claro
+
+ESTILO GENERAL:
+- Layout profesional, densidad de información media-alta (no slides vacíos)
+- Cada slide debe tener contenido visual real, no solo texto plano
+- Fuente: system-ui, -apple-system, sans-serif
+- El indicador de slide ("3 / 10") y botones prev/next siempre visibles, en la parte inferior
 
 Responde ÚNICAMENTE con el código HTML completo. Sin explicaciones, sin markdown, sin bloques de código.
 Empieza directamente con <!DOCTYPE html> y termina con </html>.`
