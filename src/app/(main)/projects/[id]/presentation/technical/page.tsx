@@ -2,7 +2,6 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getProjectById } from '@/actions/projects'
-import { getPresentation } from '@/actions/presentations'
 import { PresentationViewer } from '@/features/technical-presentation/components'
 import { ProjectAiUsageWidget } from '@/shared/components/ProjectAiUsageWidget'
 
@@ -25,7 +24,7 @@ export default async function TechnicalPresentationPage({ params }: TechnicalPre
 
   if (profile?.role === 'commercial') redirect(`/projects/${id}`)
 
-  const [projectResult, storyboardResult, presentationResult] = await Promise.all([
+  const [projectResult, storyboardResult] = await Promise.all([
     getProjectById(id),
     supabase
       .from('storyboards')
@@ -35,7 +34,6 @@ export default async function TechnicalPresentationPage({ params }: TechnicalPre
       .not('approved_at', 'is', null)
       .limit(1)
       .maybeSingle(),
-    getPresentation(id, 'technical'),
   ])
 
   if ('error' in projectResult) notFound()
@@ -46,11 +44,10 @@ export default async function TechnicalPresentationPage({ params }: TechnicalPre
   }
 
   const project = projectResult.data
-  const htmlContent = 'data' in presentationResult ? presentationResult.data?.html_content ?? null : null
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
           {/* Contenido principal */}
           <div className="min-w-0 space-y-6">
@@ -60,12 +57,12 @@ export default async function TechnicalPresentationPage({ params }: TechnicalPre
               </Link>
               <h1 className="mt-2 text-2xl font-bold text-gray-900">Presentación Técnica</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Presentación HTML de 10 slides generada por IA a partir del storyboard técnico aprobado.
+                10 slides generados como imágenes con IA. Cada slide se puede regenerar individualmente con comentarios.
               </p>
             </div>
 
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <PresentationViewer projectId={id} htmlContent={htmlContent} />
+              <PresentationViewer projectId={id} />
             </div>
           </div>
 

@@ -191,6 +191,7 @@ export interface ProjectAiSummary {
   byTaskType: {
     storyboard: number
     infographics: number
+    slides: number
   }
 }
 
@@ -213,12 +214,14 @@ export async function getProjectAiSummary(
   let totalCostUsd = 0
   let storyboard = 0
   let infographics = 0
+  let slides = 0
 
   for (const row of rows) {
     totalTokens += row.total_tokens ?? 0
     totalCostUsd += Number(row.cost_usd ?? 0)
     if (row.task_type?.startsWith('storyboard')) storyboard++
     if (row.task_type?.startsWith('infographic')) infographics++
+    if (row.task_type?.startsWith('slide_')) slides++
   }
 
   return {
@@ -226,7 +229,7 @@ export async function getProjectAiSummary(
       totalTokens,
       totalCostUsd,
       totalGenerations: rows.length,
-      byTaskType: { storyboard, infographics },
+      byTaskType: { storyboard, infographics, slides },
     },
   }
 }
