@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   generatePresentation,
   getPresentationSlides,
@@ -28,12 +27,16 @@ interface SlideState {
   status: SlideStatus
   progress: number
   imageUrl: string | null
-  jobId: string | null
   error: string | null
 }
 
-function initialSlideState(): SlideState {
-  return { status: 'idle', progress: 0, imageUrl: null, jobId: null, error: null }
+function makeSlides(): Record<number, SlideState> {
+  return Object.fromEntries(
+    Array.from({ length: 10 }, (_, i) => [
+      i + 1,
+      { status: 'idle' as SlideStatus, progress: 0, imageUrl: null, error: null },
+    ])
+  )
 }
 
 interface PresentationViewerProps {
@@ -41,23 +44,76 @@ interface PresentationViewerProps {
 }
 
 export function PresentationViewer({ projectId }: PresentationViewerProps) {
-  const [slides, setSlides] = useState<Record<number, SlideState>>(
-    Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, initialSlideState()]))
-  )
-  const [activeJobIds, setActiveJobIds] = useState<string[]>([])
+  const [slides, setSlides] = useState<Record<number, SlideState>>(makeSlides)
   const [isStarting, setIsStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lightboxSlide, setLightboxSlide] = useState<number | null>(null)
   const [retrySlide, setRetrySlide] = useState<number | null>(null)
   const [retryComment, setRetryComment] = useState('')
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Helpers
   function updateSlide(n: number, patch: Partial<SlideState>) {
     setSlides((prev) => ({ ...prev, [n]: { ...prev[n], ...patch } }))
   }
 
-  // Load existing slides on mount
+  // Aplica resultados de polling al estado local
+  const applyPollResult = useCallback((
+    existing: PresentationSlide[],
+    jobs: Array<{ id: string; status: string; progress: number; error?: string | null; slide_number?: number | null }>
+  ) => {
+    setSlides((prev) => {
+      const next = { ...prev }
+
+      // Completados
+      for (const s of existing) {
+        if (next[s.slide_number]?.status !== 'completed') {
+          next[s.slide_number] = { status: 'completed', progress: 100, imageUrl: s.url, error: null }
+        }
+      }
+
+      // Jobs activos o fallidos — solo para slides sin imagen
+      const completedNums = new Set(existing.map((s) => s.slide_number))
+      for (const job of jobs) {
+        const n = job.slide_number
+        if (!n || completedNums.has(n)) continue
+        if (job.status === 'pending' || job.status === 'running') {
+          next[n] = { status: job.status as SlideStatus, progress: job.progress ?? 0, imageUrl: null, error: null }
+        } else if (job.status === 'failed') {
+          next[n] = { status: 'failed', progress: 0, imageUrl: null, error: job.error ?? 'Error al generar' }
+        }
+      }
+
+      return next
+    })
+  }, [])
+
+  function stopPolling() {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+  }
+
+  function startPolling() {
+    stopPolling()
+    pollingRef.current = setInterval(async () => {
+      const result = await getPresentationSlides(projectId, 'technical')
+      if ('error' in result) return
+
+      const { slides: existing, jobs } = result.data as {
+        slides: PresentationSlide[]
+        jobs: Array<{ id: string; status: string; progress: number; error?: string | null; slide_number?: number | null }>
+      }
+
+      applyPollResult(existing, jobs)
+
+      // Parar cuando no haya jobs activos
+      const hasActive = jobs.some((j) => j.status === 'pending' || j.status === 'running')
+      if (!hasActive) stopPolling()
+    }, 3000)
+  }
+
+  // Carga inicial
   useEffect(() => {
     async function load() {
       const result = await getPresentationSlides(projectId, 'technical')
@@ -65,103 +121,40 @@ export function PresentationViewer({ projectId }: PresentationViewerProps) {
 
       const { slides: existing, jobs } = result.data as {
         slides: PresentationSlide[]
-        jobs: Array<{ id: string; status: string; progress: number; error?: string }>
+        jobs: Array<{ id: string; status: string; progress: number; error?: string | null; slide_number?: number | null }>
       }
 
-      // Restore completed slides
-      existing.forEach((s) => {
-        updateSlide(s.slide_number, { status: 'completed', progress: 100, imageUrl: s.url })
-      })
+      applyPollResult(existing, jobs)
 
-      // Restore active jobs
-      const active = (jobs as Array<{ id: string; status: string; progress: number; error?: string }>)
-        .filter((j) => j.status === 'pending' || j.status === 'running')
-      if (active.length > 0) {
-        setActiveJobIds(active.map((j) => j.id))
-        active.forEach((job, i) => {
-          const slideNum = i + 1
-          if (!existing.find((s) => s.slide_number === slideNum)) {
-            updateSlide(slideNum, {
-              status: job.status as SlideStatus,
-              progress: job.progress ?? 0,
-              jobId: job.id,
-            })
-          }
-        })
-      }
+      // Si hay jobs activos al cargar, iniciar polling
+      const hasActive = jobs.some((j) => j.status === 'pending' || j.status === 'running')
+      if (hasActive) startPolling()
     }
     load()
+    return () => stopPolling()
   }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Realtime subscription to generation_jobs and presentation_slides
-  useEffect(() => {
-    if (activeJobIds.length === 0) return
-
-    const supabase = createClient()
-
-    const channel = supabase
-      .channel(`presentation-jobs-${projectId}-${activeJobIds.join('-')}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'generation_jobs', filter: `project_id=eq.${projectId}` },
-        (payload) => {
-          const job = payload.new as { id: string; status: string; progress: number; error?: string }
-          if (!activeJobIds.includes(job.id)) return
-
-          const idx = activeJobIds.indexOf(job.id)
-          const slideNum = idx + 1
-          updateSlide(slideNum, {
-            status: job.status as SlideStatus,
-            progress: job.progress ?? 0,
-            error: job.error ?? null,
-            jobId: job.id,
-          })
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'presentation_slides', filter: `project_id=eq.${projectId}` },
-        (payload) => {
-          const row = payload.new as { slide_number: number; url: string; type: string }
-          if (row.type !== 'technical') return
-          updateSlide(row.slide_number, { status: 'completed', progress: 100, imageUrl: row.url })
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'presentation_slides', filter: `project_id=eq.${projectId}` },
-        (payload) => {
-          const row = payload.new as { slide_number: number; url: string; type: string }
-          if (row.type !== 'technical') return
-          updateSlide(row.slide_number, { status: 'completed', progress: 100, imageUrl: row.url })
-        }
-      )
-      .subscribe()
-
-    channelRef.current = channel
-    return () => { supabase.removeChannel(channel) }
-  }, [projectId, activeJobIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleGenerateAll() {
     setIsStarting(true)
     setError(null)
-    // Reset all slides to pending state
-    setSlides(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, { ...initialSlideState(), status: 'pending' as SlideStatus }])))
+    setSlides(makeSlides())
 
     const result = await generatePresentation(projectId)
     if ('error' in result) {
       setError(result.error)
       setIsStarting(false)
-      setSlides(Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, initialSlideState()])))
       return
     }
 
-    const jobIds = result.data.jobIds
-    setActiveJobIds(jobIds)
-    jobIds.forEach((jobId, i) => {
-      updateSlide(i + 1, { jobId, status: 'pending', progress: 0 })
-    })
+    // Marcar todos como pending e iniciar polling
+    setSlides(Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [
+        i + 1,
+        { status: 'pending' as SlideStatus, progress: 0, imageUrl: null, error: null },
+      ])
+    ))
     setIsStarting(false)
+    startPolling()
   }
 
   async function handleRetry(slideNum: number) {
@@ -169,27 +162,21 @@ export function PresentationViewer({ projectId }: PresentationViewerProps) {
     setRetrySlide(null)
     setRetryComment('')
 
+    updateSlide(slideNum, { status: 'pending', progress: 0, error: null })
+
     const result = await retryPresentationSlide(projectId, slideNum, comment)
     if ('error' in result) {
-      updateSlide(slideNum, { error: result.error })
+      updateSlide(slideNum, { status: 'failed', error: result.error })
       return
     }
 
-    const { jobId } = result.data
-    updateSlide(slideNum, { status: 'pending', progress: 0, jobId, error: null })
-    setActiveJobIds((prev) => {
-      const updated = [...prev]
-      updated[slideNum - 1] = jobId
-      return updated
-    })
+    startPolling()
   }
 
   const slideValues = Object.values(slides)
   const anyCompleted = slideValues.some((s) => s.status === 'completed')
   const anyRunning = slideValues.some((s) => s.status === 'pending' || s.status === 'running')
   const allIdle = slideValues.every((s) => s.status === 'idle')
-
-  // Lightbox
   const lightboxData = lightboxSlide ? slides[lightboxSlide] : null
 
   return (
@@ -235,19 +222,16 @@ export function PresentationViewer({ projectId }: PresentationViewerProps) {
 
       {/* Grid de slides */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-        {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
-          const s = slides[n]
-          return (
-            <SlideCard
-              key={n}
-              slideNumber={n}
-              label={SLIDE_LABELS[n]}
-              state={s}
-              onZoom={() => setLightboxSlide(n)}
-              onRetry={() => { setRetrySlide(n); setRetryComment('') }}
-            />
-          )
-        })}
+        {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+          <SlideCard
+            key={n}
+            slideNumber={n}
+            label={SLIDE_LABELS[n]}
+            state={slides[n]}
+            onZoom={() => setLightboxSlide(n)}
+            onRetry={() => { setRetrySlide(n); setRetryComment('') }}
+          />
+        ))}
       </div>
 
       {/* Retry modal */}
@@ -295,14 +279,14 @@ export function PresentationViewer({ projectId }: PresentationViewerProps) {
               </span>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setLightboxSlide((prev) => (prev && prev > 1 ? prev - 1 : prev))}
+                  onClick={() => setLightboxSlide((p) => (p && p > 1 ? p - 1 : p))}
                   disabled={lightboxSlide <= 1}
                   className="rounded-lg bg-white/10 px-3 py-1 text-sm text-white hover:bg-white/20 disabled:opacity-40"
                 >
                   ← Anterior
                 </button>
                 <button
-                  onClick={() => setLightboxSlide((prev) => (prev && prev < 10 ? prev + 1 : prev))}
+                  onClick={() => setLightboxSlide((p) => (p && p < 10 ? p + 1 : p))}
                   disabled={lightboxSlide >= 10}
                   className="rounded-lg bg-white/10 px-3 py-1 text-sm text-white hover:bg-white/20 disabled:opacity-40"
                 >
@@ -317,11 +301,7 @@ export function PresentationViewer({ projectId }: PresentationViewerProps) {
               </div>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={lightboxData.imageUrl}
-              alt={`Slide ${lightboxSlide}`}
-              className="w-full rounded-xl"
-            />
+            <img src={lightboxData.imageUrl} alt={`Slide ${lightboxSlide}`} className="w-full rounded-xl" />
             <div className="mt-3 flex justify-center">
               <button
                 onClick={() => { setLightboxSlide(null); setRetrySlide(lightboxSlide); setRetryComment('') }}
@@ -354,55 +334,32 @@ function SlideCard({ slideNumber, label, state, onZoom, onRetry }: SlideCardProp
 
   return (
     <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
-      {/* Número de slide */}
       <div className="absolute top-2 left-2 z-10 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
         {slideNumber}
       </div>
 
-      {/* Imagen o estado */}
       <div className="relative aspect-video">
         {state.imageUrl ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={state.imageUrl}
-              alt={`Slide ${slideNumber}`}
-              className="h-full w-full object-cover"
-            />
-            {/* Overlay con acciones */}
+            <img src={state.imageUrl} alt={`Slide ${slideNumber}`} className="h-full w-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-              <button
-                onClick={onZoom}
-                className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-white"
-              >
-                Ver
-              </button>
-              <button
-                onClick={onRetry}
-                className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-white"
-              >
-                ↺
-              </button>
+              <button onClick={onZoom} className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-white">Ver</button>
+              <button onClick={onRetry} className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-800 hover:bg-white">↺</button>
             </div>
           </>
         ) : isActive ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
             <div className="w-full rounded-full bg-gray-200">
-              <div
-                className="h-1.5 rounded-full bg-blue-500 transition-all"
-                style={{ width: `${state.progress}%` }}
-              />
+              <div className="h-1.5 rounded-full bg-blue-500 transition-all" style={{ width: `${state.progress}%` }} />
             </div>
             <span className="text-xs text-gray-500">{state.progress}%</span>
           </div>
         ) : state.status === 'failed' ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center">
             <span className="text-xs text-red-500">{state.error ?? 'Error al generar'}</span>
-            <button
-              onClick={onRetry}
-              className="rounded-lg bg-red-50 border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
-            >
+            <button onClick={onRetry} className="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100">
               ↺ Reintentar
             </button>
           </div>
@@ -413,9 +370,8 @@ function SlideCard({ slideNumber, label, state, onZoom, onRetry }: SlideCardProp
         )}
       </div>
 
-      {/* Label */}
       <div className="px-3 py-2">
-        <p className="text-xs font-medium text-gray-700 truncate">{label}</p>
+        <p className="truncate text-xs font-medium text-gray-700">{label}</p>
       </div>
     </div>
   )

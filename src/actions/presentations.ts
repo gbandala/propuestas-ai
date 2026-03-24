@@ -59,7 +59,7 @@ export async function getPresentationSlides(
       .order('slide_number', { ascending: true }),
     supabase
       .from('generation_jobs')
-      .select('*')
+      .select('id, status, progress, error, slide_number')
       .eq('project_id', projectId)
       .eq('type', 'technical_presentation')
       .order('created_at', { ascending: false })
@@ -115,12 +115,13 @@ export async function generatePresentation(
     return { error: 'Ya hay una generación de slides en curso.' }
   }
 
-  // Crear 10 jobs (uno por slide)
-  const jobInserts = Array.from({ length: 10 }, () => ({
+  // Crear 10 jobs (uno por slide) con slide_number para trazabilidad
+  const jobInserts = Array.from({ length: 10 }, (_, i) => ({
     project_id: projectId,
     type: 'technical_presentation' as const,
     status: 'pending' as const,
     progress: 0,
+    slide_number: i + 1,
   }))
 
   const { data: jobs, error: jobsError } = await supabase
@@ -163,6 +164,7 @@ export async function retryPresentationSlide(
       type: 'technical_presentation' as const,
       status: 'pending' as const,
       progress: 0,
+      slide_number: slideNumber,
     })
     .select('id')
     .single()
