@@ -5,6 +5,22 @@ import { VARIANT_LABELS, VARIANT_DESCRIPTIONS } from '../types'
 import { GenerationProgressBar } from './GenerationProgressBar'
 import type { TechnicalVariant, VariantState } from '../types'
 
+function DownloadButton({ url, label }: { url: string; label: string }) {
+  const filename = `infografia-${label.toLowerCase().replace(/\s+/g, '-')}.png`
+  const href = `/api/download-image?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`
+  return (
+    <a
+      href={href}
+      download={filename}
+      onClick={(e) => e.stopPropagation()}
+      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+      title="Descargar imagen"
+    >
+      ↓
+    </a>
+  )
+}
+
 interface InfographicVariantCardProps {
   variant: TechnicalVariant
   state: VariantState
@@ -131,6 +147,7 @@ export function InfographicVariantCard({
             >
               Seleccionar
             </button>
+            {state.imageUrl && <DownloadButton url={state.imageUrl} label={VARIANT_LABELS[variant]} />}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -156,6 +173,7 @@ export function InfographicVariantCard({
             >
               Variante seleccionada ✓
             </button>
+            {state.imageUrl && <DownloadButton url={state.imageUrl} label={VARIANT_LABELS[variant]} />}
             <button
               onClick={(e) => {
                 e.stopPropagation()
