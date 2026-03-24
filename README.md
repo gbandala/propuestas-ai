@@ -136,7 +136,7 @@ npm run dev
 ```
 
 Tablas Supabase requeridas: `profiles`, `projects`, `technical_briefs`, `brand_identity`,
-`storyboards`, `infographics`, `generation_jobs`, `ai_usage_logs`, `downloads`
+`storyboards`, `infographics`, `generation_jobs`, `presentations`, `ai_usage_logs`, `downloads`
 
 Primer usuario: rol `architect` por defecto. Para cambiar a `admin`:
 Supabase Dashboard -> tabla `profiles` -> columna `role`.
