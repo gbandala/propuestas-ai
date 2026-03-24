@@ -1,6 +1,6 @@
 # BUSINESS_LOGIC.md - PropuestasAI
 
-> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-21
+> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-24
 
 ---
 
@@ -48,7 +48,7 @@
    - El sistema regenera solo las piezas modificadas hasta obtener aprobación
 6. Con el storyboard aprobado, sistema genera 3 variantes de infografía técnica con IA
 7. Arquitecto selecciona variante preferida
-8. Sistema genera presentación técnica completa (10 slides HTML)
+8. Sistema genera presentación técnica completa (10 slides como imágenes PNG 1376x768px con IA, descargable como PPTX)
 9. Arquitecto descarga ZIP con carpeta `/tecnica/` (brief + infografías + presentación)
 
 #### Fase 2: Comercial (Gestor Comercial — solo si fase técnica completada)
@@ -93,13 +93,15 @@
 **Output:**
 - `brief-tecnico.md` — documento técnico completo
 - `storyboard-tecnico.md` — descripción textual aprobada de infografías y slides técnicos
-- `presentacion-tecnica.html` — 10 slides interactivos con brand identity
-- 3 infografías técnicas PNG 800×600 (flujo de datos / arquitectura / timeline)
+- 10 slides técnicos PNG 1376x768 con IA (portada, problema, solución, arquitectura, etc.)
+- `presentacion-tecnica.pptx` — presentación descargable (10 imágenes en PPTX LAYOUT_WIDE)
+- 3 infografías técnicas PNG (flujo de datos / arquitectura / resumen técnico)
 - `storyboard-comercial.md` — descripción textual aprobada de infografías y slides comerciales
 - `propuesta-comercial.md` — documento comercial completo
-- `presentacion-comercial.html` — 10 slides ejecutivos con brand identity
-- 2 infografías comerciales ROI PNG 800×600
-- 2 infografías roadmap PNG 800×600
+- 10 slides comerciales PNG 1376x768 con IA
+- `presentacion-comercial.pptx` — presentación ejecutiva descargable
+- 2 infografías comerciales ROI PNG
+- 2 infografías roadmap PNG
 - `brand-identity.md` — identidad visual del proyecto
 - `proyecto-xyz.json` — metadata completa del proyecto
 - ZIP descargable por carpeta o completo
@@ -108,12 +110,13 @@
 - `projects` — id, name, client, architect_id, commercial_id, status, created_at
 - `technical_briefs` — project_id, step_data (JSONB), generated_at
 - `brand_identity` — project_id, markdown_content, created_at, updated_at
-- `storyboards` — id, project_id, type (technical/commercial), content_md, version, approved_at, created_at
+- `storyboards` — id, project_id, type (technical/commercial/infographic), content_md, version, approved_at, created_at
 - `infographics` — project_id, type (technical/roi/roadmap), variant, url, selected
-- `presentations` — project_id, type (technical/commercial), html_url, slides_count
+- `presentation_slides` — project_id, type (technical/commercial), slide_number, url, prompt_used, UNIQUE(project_id,type,slide_number)
 - `commercial_proposals` — project_id, markdown_content, phases_data (JSONB), generated_at
 - `downloads` — project_id, type (technical/commercial/complete), zip_url, downloaded_at
-- `generation_jobs` — id, project_id, type, status, progress, error, created_at
+- `generation_jobs` — id, project_id, type, status, progress, error, slide_number, created_at
+- `ai_usage_logs` — project_id, user_id, task_type, provider, model, tokens, cost_usd, latency_ms, is_revision
 
 ---
 
@@ -177,15 +180,17 @@ src/features/
    - Se guardan todas las versiones para auditoría
    - Solo la última versión aprobada se usa como contexto de generación
 
-5. **Generación de infografías con IA:**
-   - Usar OpenRouter con Gemini 2.0 Flash para generación de imágenes
-   - El prompt incluye: storyboard aprobado + brand identity + dimensiones 1024×768px
-   - Post-process: redimensionar a 800×600, añadir logo en esquina según brand identity
-   - Guardar en Supabase Storage bajo `/projects/{id}/infographics/`
+5. **Generación de imágenes con IA (infografías y slides):**
+   - Modelo: google/gemini-3.1-flash-image-preview via Gemini API directa (fallback a OpenRouter)
+   - Infografías: 1376x768px, 3 variantes por proyecto
+   - Slides de presentación: 1376x768px, 10 slides por proyecto, prompts con layout específico por slide
+   - Guardar en Supabase Storage bajo `/projects/{id}/infographics/` o `/projects/{id}/slides/technical/`
 
-6. **Generación async con progress:**
-   - Usar Supabase Realtime para actualizar estado del job en tiempo real
-   - UI muestra barra de progreso por infografía (33% → 66% → 100%)
+6. **Generación async con progress (patrón fire-and-forget + polling):**
+   - Server Action crea jobs en generation_jobs con slide_number → llama API Route via fetch
+   - API Route hace el trabajo y actualiza job (running → completed/failed)
+   - UI hace polling setInterval(3s) — Realtime descartado por ser poco confiable con jobs rapidos
+   - Polling se detiene automaticamente cuando no quedan jobs activos
 
 7. **Plantilla base de brand identity:**
    - Al crear un proyecto, se pre-carga una plantilla Markdown editable
@@ -251,7 +256,7 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 7. [x] Feature: storyboard con IA real (Gemini/OpenRouter, generacion contextual)
 8. [x] Capa de IA unificada: Gemini primario → OpenRouter fallback + ai_usage_logs
 9. [x] Bitácora /admin/ai-usage + AiModelBadge + Widget de créditos por proyecto
-10. [x] Feature: presentation-generation (HTML 10 slides, refinar, pantalla completa — 2026-03-23)
+10. [x] Feature: presentation-generation (10 slides PNG 1376x768 con IA, polling, lightbox, retry individual, descarga PPTX — 2026-03-24)
 11. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
 12. [ ] Feature: downloads (ZIP generator)
 

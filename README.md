@@ -43,12 +43,13 @@ Configurar Brand Identity (editor Markdown con colores, tipografia, logo)
       |
 Brief Tecnico - 5 pasos (captura del discovery: problema, solucion, stack, decisiones, entregables)
       |
-Storyboard Tecnico  <- IA genera contenido contextual del brief
-(slide a slide -> editar tarjeta por tarjeta -> iterar con IA -> aprobar / reabrir)
+Storyboard de Infografias  <- IA genera 3 descripciones visuales, editar por seccion, aprobar
       |
-Infografias Tecnicas (3 variantes con IA, lightbox de detalle, regenerar por variante, progreso en tiempo real)
+Infografias Tecnicas (3 variantes PNG con IA, lightbox, regenerar individual, seleccion opcional)
       |
-Presentacion Tecnica (10 slides HTML auto-contenido, refinar con instrucciones, pantalla completa)
+Storyboard de Presentacion  <- IA genera 10 slides textuales, editar, aprobar
+      |
+Presentacion Tecnica (10 slides PNG 1376x768 con IA, polling en tiempo real, lightbox, retry con comentario, descarga PPTX)
       |
 [PENDIENTE] Fase Comercial
 ```
@@ -82,7 +83,7 @@ Solo visible para rol `admin`. Muestra:
 ### Widget de creditos por proyecto
 
 En cada etapa del flujo aparece un widget lateral con tokens acumulados,
-costo total y contadores por tipo de generacion (Storyboard, Infografias).
+costo total y contadores por tipo de generacion (Storyboard / Infografias / Slides).
 
 ---
 
@@ -136,7 +137,7 @@ npm run dev
 ```
 
 Tablas Supabase requeridas: `profiles`, `projects`, `technical_briefs`, `brand_identity`,
-`storyboards`, `infographics`, `generation_jobs`, `presentations`, `ai_usage_logs`, `downloads`
+`storyboards`, `infographics`, `presentation_slides`, `generation_jobs`, `ai_usage_logs`, `downloads`
 
 Primer usuario: rol `architect` por defecto. Para cambiar a `admin`:
 Supabase Dashboard -> tabla `profiles` -> columna `role`.
@@ -175,24 +176,27 @@ npm run lint         # ESLint
 
 ---
 
-## Estado actual (2026-03-23)
+## Estado actual (2026-03-24)
 
 ### Implementado — Fase Tecnica completa
 - [x] Auth completo con 3 roles (architect / commercial / admin)
 - [x] Projects CRUD + dashboard
 - [x] Brand Identity (editor Markdown + preview + plantilla base)
-- [x] Technical Brief — 5 pasos arquitectura-first
-- [x] Storyboard con IA real — slide a slide, edicion por tarjeta, reabrir aprobado, regenerar con feedback
-- [x] Infographic Generation — 3 variantes async con progreso Realtime
+- [x] Technical Brief — 5 pasos arquitectura-first (sin infografias embebidas)
+- [x] Storyboard de Infografias — genera solo las 3 piezas visuales, edicion por seccion, aprobar/reabrir
+- [x] Infographic Generation — 3 variantes PNG async con polling en tiempo real
   - Lightbox fullscreen para ver detalle antes de seleccionar
-  - Regeneracion por variante individual (boton en cada tarjeta)
-  - Deselect toggle — tocar la variante seleccionada la deselecciona
-- [x] Presentacion Tecnica — 10 slides HTML auto-contenido con identidad de marca
-  - Seccion "Refinar" para ajustar slides con instrucciones especificas
-  - Preview interactivo en iframe + apertura en pantalla completa
+  - Regeneracion individual con comentario opcional
+  - Deselect toggle — seleccion es opcional
+- [x] Storyboard de Presentacion — genera solo los 10 slides, edicion, aprobar/reabrir
+- [x] Presentacion Tecnica — 10 slides como imagenes PNG 1376x768 con IA
+  - Polling setInterval(3s) — sin dependencia de Supabase Realtime
+  - Lightbox fullscreen con navegacion slide a slide
+  - Retry individual con comentario opcional (modal con textarea)
+  - Descarga como PPTX real (pptxgenjs, una imagen por slide)
 - [x] Capa AI unificada: Gemini primario (free) -> OpenRouter fallback (automatico)
 - [x] Bitacora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs)
-- [x] Widget Creditos IA por proyecto en cada etapa del flujo
+- [x] Widget Creditos IA: tokens + costo + Storyboard / Infografias / Slides
 
 ### Pendiente
 - [ ] Commercial Proposal (storyboard + infografias + presentacion comercial)
