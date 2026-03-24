@@ -6,6 +6,8 @@ export type AiTaskType =
   | 'infographic_v1'
   | 'infographic_v2'
   | 'infographic_v3'
+  | 'presentation_technical'
+  | 'presentation_commercial'
 export type ProjectStatus = 'draft' | 'in_progress' | 'completed' | 'archived'
 export type InfographicType = 'technical' | 'roi' | 'roadmap'
 export type PresentationType = 'technical' | 'commercial'

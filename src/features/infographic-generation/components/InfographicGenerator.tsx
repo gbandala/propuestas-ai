@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useInfographicStore } from '../store/infographic.store'
 import { useRealtimeJobProgress } from '../hooks/useRealtimeJobProgress'
 import { InfographicVariantGrid } from './InfographicVariantGrid'
+import { InfographicLightbox } from './InfographicLightbox'
 import {
   generateTechnicalInfographics,
   selectInfographicVariant,
+  deselectInfographicVariant,
   getProjectInfographics,
   retryInfographicVariant,
 } from '@/actions/infographics'
@@ -42,6 +44,7 @@ export function InfographicGenerator({ projectId }: InfographicGeneratorProps) {
 
   const [jobIds, setJobIds] = useState<string[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [lightboxVariant, setLightboxVariant] = useState<TechnicalVariant | null>(null)
 
   // Subscribe to realtime job progress
   useRealtimeJobProgress(projectId, jobIds)
@@ -137,12 +140,20 @@ export function InfographicGenerator({ projectId }: InfographicGeneratorProps) {
 
   async function handleSelect(variant: TechnicalVariant) {
     const { variants } = useInfographicStore.getState()
-    const infographicId = variants[variant].infographicId
+    const variantState = variants[variant]
+    const infographicId = variantState.infographicId
     if (!infographicId) return
+
+    // Toggle: si ya está seleccionada, deseleccionar
+    if (variantState.selected) {
+      const result = await deselectInfographicVariant(projectId)
+      if ('error' in result) return
+      setSelectedVariant(null)
+      return
+    }
 
     const result = await selectInfographicVariant(infographicId, projectId)
     if ('error' in result) return
-
     setSelectedVariant(variant)
   }
 
@@ -179,7 +190,7 @@ export function InfographicGenerator({ projectId }: InfographicGeneratorProps) {
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Infografías Técnicas</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Genera 3 variantes de infografía técnica con IA. Selecciona la que mejor represente tu propuesta.
+            Genera 3 variantes con IA. Usa ↺ en cada card para regenerar una sola variante.
           </p>
         </div>
 
@@ -208,7 +219,20 @@ export function InfographicGenerator({ projectId }: InfographicGeneratorProps) {
         </div>
       )}
 
-      <InfographicVariantGrid onSelect={handleSelect} onRetry={handleRetry} />
+      <InfographicVariantGrid onSelect={handleSelect} onRetry={handleRetry} onZoom={setLightboxVariant} />
+
+      {lightboxVariant !== null && (
+        <InfographicLightbox
+          openVariant={lightboxVariant}
+          variants={variants}
+          onClose={() => setLightboxVariant(null)}
+          onNavigate={setLightboxVariant}
+          onSelect={async (v) => {
+            await handleSelect(v)
+            setLightboxVariant(null)
+          }}
+        />
+      )}
     </div>
   )
 }

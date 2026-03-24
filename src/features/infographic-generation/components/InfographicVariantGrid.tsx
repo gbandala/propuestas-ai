@@ -7,9 +7,10 @@ import type { TechnicalVariant } from '../types'
 interface InfographicVariantGridProps {
   onSelect: (variant: TechnicalVariant) => void
   onRetry: (variant: TechnicalVariant) => void
+  onZoom: (variant: TechnicalVariant) => void
 }
 
-export function InfographicVariantGrid({ onSelect, onRetry }: InfographicVariantGridProps) {
+export function InfographicVariantGrid({ onSelect, onRetry, onZoom }: InfographicVariantGridProps) {
   const { variants } = useInfographicStore()
 
   return (
@@ -21,6 +22,7 @@ export function InfographicVariantGrid({ onSelect, onRetry }: InfographicVariant
           state={variants[variant]}
           onSelect={onSelect}
           onRetry={onRetry}
+          onZoom={onZoom}
         />
       ))}
     </div>

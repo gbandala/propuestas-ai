@@ -251,7 +251,7 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 7. [x] Feature: storyboard con IA real (Gemini/OpenRouter, generacion contextual)
 8. [x] Capa de IA unificada: Gemini primario → OpenRouter fallback + ai_usage_logs
 9. [x] Bitácora /admin/ai-usage + AiModelBadge + Widget de créditos por proyecto
-10. [ ] Feature: presentation-generation (HTML slides con brand identity)
+10. [x] Feature: presentation-generation (HTML 10 slides, refinar, pantalla completa — 2026-03-23)
 11. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
 12. [ ] Feature: downloads (ZIP generator)
 

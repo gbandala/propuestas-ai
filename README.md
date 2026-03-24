@@ -44,11 +44,11 @@ Configurar Brand Identity (editor Markdown con colores, tipografia, logo)
 Brief Tecnico - 5 pasos (captura del discovery: problema, solucion, stack, decisiones, entregables)
       |
 Storyboard Tecnico  <- IA genera contenido contextual del brief
-(borrador textual -> revisar -> iterar -> aprobar)
+(slide a slide -> editar tarjeta por tarjeta -> iterar con IA -> aprobar / reabrir)
       |
-Infografias Tecnicas (3 variantes con IA, progreso en tiempo real)
+Infografias Tecnicas (3 variantes con IA, lightbox de detalle, regenerar por variante, progreso en tiempo real)
       |
-[PENDIENTE] Presentacion Tecnica (10 slides HTML)
+Presentacion Tecnica (10 slides HTML auto-contenido, refinar con instrucciones, pantalla completa)
       |
 [PENDIENTE] Fase Comercial
 ```
@@ -175,20 +175,25 @@ npm run lint         # ESLint
 
 ---
 
-## Estado actual (2026-03-22)
+## Estado actual (2026-03-23)
 
-### Implementado
+### Implementado — Fase Tecnica completa
 - [x] Auth completo con 3 roles (architect / commercial / admin)
 - [x] Projects CRUD + dashboard
 - [x] Brand Identity (editor Markdown + preview + plantilla base)
 - [x] Technical Brief — 5 pasos arquitectura-first
-- [x] Storyboard con IA real (Gemini/OpenRouter genera contenido contextual del brief)
+- [x] Storyboard con IA real — slide a slide, edicion por tarjeta, reabrir aprobado, regenerar con feedback
 - [x] Infographic Generation — 3 variantes async con progreso Realtime
+  - Lightbox fullscreen para ver detalle antes de seleccionar
+  - Regeneracion por variante individual (boton en cada tarjeta)
+  - Deselect toggle — tocar la variante seleccionada la deselecciona
+- [x] Presentacion Tecnica — 10 slides HTML auto-contenido con identidad de marca
+  - Seccion "Refinar" para ajustar slides con instrucciones especificas
+  - Preview interactivo en iframe + apertura en pantalla completa
 - [x] Capa AI unificada: Gemini primario (free) -> OpenRouter fallback (automatico)
 - [x] Bitacora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs)
 - [x] Widget Creditos IA por proyecto en cada etapa del flujo
 
 ### Pendiente
-- [ ] Presentation Generation (HTML 10 slides)
-- [ ] Commercial Proposal
+- [ ] Commercial Proposal (storyboard + infografias + presentacion comercial)
 - [ ] Downloads (ZIP tecnico / comercial / completo)

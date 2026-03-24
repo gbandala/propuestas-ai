@@ -120,6 +120,43 @@ export async function generateStoryboard(
   return { data }
 }
 
+export async function reopenStoryboard(
+  storyboardId: string
+): Promise<{ data: { id: string } } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data, error } = await supabase
+    .from('storyboards')
+    .update({ approved_at: null })
+    .eq('id', storyboardId)
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  return { data }
+}
+
+export async function updateStoryboardContent(
+  storyboardId: string,
+  newContent: string
+): Promise<{ data: { id: string } } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data, error } = await supabase
+    .from('storyboards')
+    .update({ content_md: newContent, approved_at: null })
+    .eq('id', storyboardId)
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  return { data }
+}
+
 export async function approveStoryboard(
   storyboardId: string
 ): Promise<{ data: { id: string } } | { error: string }> {

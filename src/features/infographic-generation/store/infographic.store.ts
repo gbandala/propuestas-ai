@@ -5,7 +5,7 @@ import { INITIAL_VARIANT_STATE } from '../types'
 interface InfographicStore extends GenerationState {
   setIsStarting: (v: boolean) => void
   setVariantState: (variant: TechnicalVariant, state: Partial<VariantState>) => void
-  setSelectedVariant: (variant: TechnicalVariant) => void
+  setSelectedVariant: (variant: TechnicalVariant | null) => void
   resetAll: () => void
 }
 
@@ -38,5 +38,6 @@ export const useInfographicStore = create<InfographicStore>((set) => ({
         3: { ...s.variants[3], selected: variant === 3 },
       },
     })),
+
   resetAll: () => set(initialState),
 }))

@@ -10,6 +10,7 @@ interface InfographicVariantCardProps {
   state: VariantState
   onSelect: (variant: TechnicalVariant) => void
   onRetry: (variant: TechnicalVariant) => void
+  onZoom: (variant: TechnicalVariant) => void
 }
 
 export function InfographicVariantCard({
@@ -17,6 +18,7 @@ export function InfographicVariantCard({
   state,
   onSelect,
   onRetry,
+  onZoom,
 }: InfographicVariantCardProps) {
   const isCompleted = state.status === 'completed'
   const isFailed = state.status === 'failed'
@@ -37,13 +39,27 @@ export function InfographicVariantCard({
       {/* Image area */}
       <div className="relative aspect-[4/3] bg-gray-50">
         {isCompleted && state.imageUrl ? (
-          <Image
-            src={state.imageUrl}
-            alt={VARIANT_LABELS[variant]}
-            fill
-            className="object-cover"
-            unoptimized
-          />
+          <>
+            <Image
+              src={state.imageUrl}
+              alt={VARIANT_LABELS[variant]}
+              fill
+              className="object-cover"
+              unoptimized
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onZoom(variant)
+              }}
+              className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+              title="Ver en detalle"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </button>
+          </>
         ) : isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center space-y-3 px-4">
@@ -105,20 +121,51 @@ export function InfographicVariantCard({
         )}
 
         {isCompleted && !isSelected && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onSelect(variant)
-            }}
-            className="w-full rounded-lg bg-blue-50 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
-          >
-            Seleccionar esta variante
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect(variant)
+              }}
+              className="flex-1 rounded-lg bg-blue-50 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+            >
+              Seleccionar
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRetry(variant)
+              }}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              title="Regenerar solo esta variante"
+            >
+              ↺
+            </button>
+          </div>
         )}
 
         {isSelected && (
-          <div className="w-full rounded-lg bg-blue-500 py-1.5 text-center text-xs font-medium text-white">
-            Variante seleccionada
+          <div className="flex gap-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect(variant)
+              }}
+              className="flex-1 rounded-lg bg-blue-500 py-1.5 text-xs font-medium text-white hover:bg-blue-600 transition-colors"
+              title="Toca para deseleccionar"
+            >
+              Variante seleccionada ✓
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRetry(variant)
+              }}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              title="Regenerar solo esta variante"
+            >
+              ↺
+            </button>
           </div>
         )}
       </div>

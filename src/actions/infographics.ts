@@ -98,6 +98,23 @@ export async function selectInfographicVariant(
   return { success: true }
 }
 
+export async function deselectInfographicVariant(
+  projectId: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('infographics')
+    .update({ selected: false })
+    .eq('project_id', projectId)
+    .eq('type', 'technical')
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
 export async function getProjectInfographics(
   projectId: string
 ): Promise<{ data: { jobs: unknown[]; infographics: unknown[] } } | { error: string }> {

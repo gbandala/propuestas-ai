@@ -27,14 +27,16 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const technicalDone = !!project.technical_completed_at
 
   // Verificar brand identity y storyboard configurados
-  const [brandResult, storyboardResult] = await Promise.all([
+  const [brandResult, storyboardResult, presentationResult] = await Promise.all([
     supabase.from('brand_identity').select('id').eq('project_id', id).maybeSingle(),
     supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'technical').order('version', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('presentations').select('id, html_content').eq('project_id', id).eq('type', 'technical').maybeSingle(),
   ])
 
   const hasBrand = !!brandResult.data
   const hasStoryboard = !!storyboardResult.data
   const storyboardApproved = !!storyboardResult.data?.approved_at
+  const hasPresentation = !!presentationResult.data?.html_content
 
   const steps = [
     {
@@ -69,8 +71,8 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       number: 4,
       label: 'Infografias y Presentacion Tecnica',
       description: '3 variantes de infografias + presentacion HTML de 10 slides.',
-      done: false,
-      href: `/projects/${id}/technical`,
+      done: hasPresentation,
+      href: storyboardApproved ? `/projects/${id}/presentation/technical` : `/projects/${id}/technical`,
       visible: isArchitect,
       locked: !storyboardApproved,
       lockedReason: 'Requiere el storyboard tecnico aprobado.',
