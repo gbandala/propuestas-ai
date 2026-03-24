@@ -197,7 +197,9 @@ npm run lint         # ESLint
 - [x] Capa AI unificada: Gemini primario (free) -> OpenRouter fallback (automatico)
 - [x] Bitacora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs)
 - [x] Widget Creditos IA: tokens + costo + Storyboard / Infografias / Slides
+- [x] Boton "Cerrar sesion" + email/rol en dashboard
+- [x] Descarga individual de infografias (boton ↓ en cada card, proxy /api/download-image)
 
 ### Pendiente
-- [ ] Commercial Proposal (storyboard + infografias + presentacion comercial)
+- [ ] Fase Comercial (propuesta + storyboard + infografias ROI/Roadmap + presentacion ejecutiva)
 - [ ] Downloads (ZIP tecnico / comercial / completo)
