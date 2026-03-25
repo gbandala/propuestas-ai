@@ -13,11 +13,7 @@ export async function ProjectAiUsageWidget({ projectId }: ProjectAiUsageWidgetPr
   const result = await getProjectAiSummary(projectId)
   if ('error' in result) return null
 
-  const { totalTokens, totalCostUsd, totalGenerations, byTaskType } = result.data
-
-  const costLabel = totalCostUsd < 0.001
-    ? 'Gratis'
-    : `$${totalCostUsd.toFixed(4)}`
+  const { totalTokens, totalGenerations, byTaskType } = result.data
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -33,13 +29,6 @@ export async function ProjectAiUsageWidget({ projectId }: ProjectAiUsageWidgetPr
           <span className="text-sm text-gray-600">Tokens usados</span>
           <span className="font-mono text-sm font-semibold text-gray-900">
             {formatTokens(totalTokens)}
-          </span>
-        </div>
-
-        <div className="flex items-baseline justify-between">
-          <span className="text-sm text-gray-600">Costo acumulado</span>
-          <span className={`text-sm font-semibold ${totalCostUsd < 0.001 ? 'text-green-600' : 'text-gray-900'}`}>
-            {costLabel}
           </span>
         </div>
 

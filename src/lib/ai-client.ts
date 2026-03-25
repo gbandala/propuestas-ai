@@ -1,5 +1,5 @@
 /**
- * Cliente AI unificado: Gemini API (primario, free tier) → OpenRouter SDK (fallback)
+ * Cliente AI unificado: Gemini API (primario, free tier) → OpenRouter (fallback)
  *
  * Modelo: google/gemini-3.1-flash-image-preview
  * - Soporta generación de texto e imágenes
@@ -7,7 +7,6 @@
  * - Fallback automático a OpenRouter cuando Gemini excede quota o no está disponible
  */
 
-import { OpenRouter } from '@openrouter/sdk'
 import type { AiProvider } from '@/types/database'
 
 const GEMINI_MODEL = 'gemini-3.1-flash-image-preview'
@@ -102,38 +101,41 @@ async function generateImageViaOpenRouter(prompt: string): Promise<AiImageResult
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada')
 
-  const openrouter = new OpenRouter({ apiKey })
   const t0 = Date.now()
-
-  const result = await openrouter.chat.send({
-    chatGenerationParams: {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+      'X-Title': 'PropuestasAI',
+    },
+    body: JSON.stringify({
       model: OPENROUTER_MODEL,
       messages: [{ role: 'user', content: prompt }],
       modalities: ['image', 'text'],
-    },
-    httpReferer: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
-    xTitle: 'PropuestasAI',
+    }),
   })
 
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`OpenRouter imagen error ${res.status}: ${body}`)
+  }
+
   const latencyMs = Date.now() - t0
-  const response = result as OpenRouterResponse
+  const response = await res.json() as OpenRouterResponse
   const message = response.choices?.[0]?.message
   const usage = response.usage
 
   const meta: AiMeta = {
     provider: 'openrouter',
     model: response.model ?? OPENROUTER_MODEL,
-    promptTokens: usage?.promptTokens ?? null,
-    completionTokens: usage?.completionTokens ?? null,
-    totalTokens: usage?.totalTokens ?? null,
+    promptTokens: usage?.prompt_tokens ?? null,
+    completionTokens: usage?.completion_tokens ?? null,
+    totalTokens: usage?.total_tokens ?? null,
     latencyMs,
   }
 
-  // Formato SDK: message.images[].imageUrl.url (camelCase)
-  const imageUrl = message?.images?.[0]?.imageUrl?.url
-  if (imageUrl) return { buffer: await imageUrlToBuffer(imageUrl), meta }
-
-  // Formato alternativo: content como array de partes
   const content = message?.content
   if (Array.isArray(content)) {
     for (const part of content as ContentPart[]) {
@@ -226,36 +228,44 @@ async function generateTextViaOpenRouter(systemPrompt: string, userPrompt: strin
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada')
 
-  const openrouter = new OpenRouter({ apiKey })
   const t0 = Date.now()
-
-  const result = await openrouter.chat.send({
-    chatGenerationParams: {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+      'X-Title': 'PropuestasAI',
+    },
+    body: JSON.stringify({
       model: OPENROUTER_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-    },
-    httpReferer: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
-    xTitle: 'PropuestasAI',
+    }),
   })
 
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`OpenRouter texto error ${res.status}: ${body}`)
+  }
+
   const latencyMs = Date.now() - t0
-  const response = result as OpenRouterResponse
+  const response = await res.json() as OpenRouterResponse
   const text = response.choices?.[0]?.message?.content
-  const usage = response.usage
 
   if (typeof text !== 'string' || !text) throw new Error('OpenRouter no retornó texto')
 
+  const usage = response.usage
   return {
     text,
     meta: {
       provider: 'openrouter',
       model: response.model ?? OPENROUTER_MODEL,
-      promptTokens: usage?.promptTokens ?? null,
-      completionTokens: usage?.completionTokens ?? null,
-      totalTokens: usage?.totalTokens ?? null,
+      promptTokens: usage?.prompt_tokens ?? null,
+      completionTokens: usage?.completion_tokens ?? null,
+      totalTokens: usage?.total_tokens ?? null,
       latencyMs,
     },
   }
@@ -304,13 +314,12 @@ interface OpenRouterResponse {
   model?: string
   choices?: Array<{
     message?: {
-      content?: string | null
-      images?: Array<{ imageUrl: { url: string } }>
+      content?: string | ContentPart[] | null
     }
   }>
   usage?: {
-    promptTokens?: number
-    completionTokens?: number
-    totalTokens?: number
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
   }
 }
