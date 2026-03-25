@@ -55,14 +55,19 @@ export default async function BrandIdentityPage({ params }: BrandPageProps) {
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-gray-900">Identidad de Marca</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Define los colores, tipografia y estilo visual del cliente. Se usa en todas las infografias y presentaciones generadas.
+            Define los colores, tipografia y estilo visual del cliente. Se usa en todas las infografias generadas.
           </p>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <BrandIdentityEditor
             projectId={id}
-            initial={initialBrand ? { ...initialBrand, project_id: id, created_at: '', updated_at: '' } : null}
+            initial={initialBrand ? {
+              ...initialBrand,
+              project_id: id,
+              created_at: '',
+              updated_at: '',
+            } : null}
             onSave={handleSave}
           />
         </div>

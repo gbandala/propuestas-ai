@@ -87,7 +87,7 @@ export function StoryboardReviewer({
 
   const isApproved = !!storyboard?.approved_at
   const hasStoryboard = !!storyboard?.content_md
-  const typeLabel = type === 'infographic' ? 'de Infografias' : type === 'technical' ? 'de Presentacion' : 'Comercial'
+  const typeLabel = 'de la Propuesta'
 
   async function handleGenerate() {
     setIsGenerating(true)
@@ -204,11 +204,8 @@ export function StoryboardReviewer({
           </div>
           <h3 className="text-sm font-medium text-gray-900">Sin storyboard aun</h3>
           <p className="mt-1 text-sm text-gray-500">
-            {type === 'infographic'
-              ? 'Genera el borrador textual de las 3 infografias tecnicas.'
-              : type === 'technical'
-              ? 'Genera el borrador textual de los 10 slides de presentacion.'
-              : 'Genera el borrador textual de las 4 infografias + 10 slides comerciales.'}
+            Genera el borrador textual de los 7 slides de la propuesta.
+            La IA usará el brief y la identidad de marca del proyecto.
           </p>
           <button
             onClick={handleGenerate}

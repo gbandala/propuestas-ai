@@ -23,27 +23,13 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
+  // Tipo activo: 'infographic' (propuesta unificada). Se mantiene el param por compatibilidad.
   const type: StoryboardType =
     typeParam === 'commercial' ? 'commercial' :
     typeParam === 'infographic' ? 'infographic' :
-    'technical'
+    'infographic'
 
-  // Comercial no puede ver storyboard tecnico ni de infografias
-  if (profile?.role === 'commercial' && (type === 'technical' || type === 'infographic')) {
-    redirect(`/projects/${id}`)
-  }
-
-  const taskTypes = type === 'technical'
-    ? ['storyboard_technical']
-    : type === 'infographic'
-    ? ['storyboard_infographic']
-    : ['storyboard_commercial']
+  const taskTypes = ['storyboard_infographic']
 
   const [projectResult, storyboardResult, lastLogResult] = await Promise.all([
     getProjectById(id),
@@ -80,13 +66,7 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
     revalidatePath(`/projects/${id}/storyboard`)
   }
 
-  const nextHref = type === 'infographic'
-    ? `/projects/${id}/infographics`
-    : type === 'technical'
-    ? `/projects/${id}/presentation/technical`
-    : `/projects/${id}/commercial`
-
-  const typeLabel = type === 'technical' ? 'de Presentacion' : type === 'infographic' ? 'de Infografias' : 'Comercial'
+  const nextHref = `/projects/${id}/infographics`
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -97,10 +77,10 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
               ← {project.name}
             </Link>
             <h1 className="mt-2 text-2xl font-bold text-gray-900">
-              Storyboard {typeLabel}
+              Storyboard de la Propuesta
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Borrador textual de las piezas visuales. Apruebalo antes de generar las imagenes con IA.
+              Borrador textual de los slides. Edita, itera y aprueba antes de generar las imágenes.
             </p>
             {lastLog && (
               <div className="mt-2">
@@ -139,9 +119,7 @@ export default async function StoryboardPage({ params, searchParams }: Storyboar
               href={nextHref}
               className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
-              {type === 'infographic' ? 'Continuar a generar infografias →' :
-               type === 'technical' ? 'Continuar a la presentacion →' :
-               'Continuar a propuesta comercial →'}
+              Continuar a generar infografías →
             </Link>
           </div>
         )}

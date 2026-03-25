@@ -114,17 +114,17 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 4 — Storyboard (ajustar prompts y tipo único)
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Actualizar `src/actions/storyboard.ts`:
+- [x] Actualizar `src/actions/storyboard.ts`:
   - Usar `briefs.content` en lugar de `technical_briefs.step_data` como fuente del brief
-  - El tipo activo es `'infographic'`, eliminar lógica de `'technical'` y `'commercial'`
-- [ ] Actualizar `buildSystemPrompt` en storyboard.ts:
-  - Nuevo prompt para tipo `'infographic'`: describe los 7 slides de arranque (ROI, problema,
-    flujo técnico, arquitectura, entregables, roadmap, inversión)
-  - Indicar que el usuario puede agregar más secciones (hasta 10)
-- [ ] Actualizar `buildUserPrompt`: usar el campo `content` del brief libre (no step_data)
-- [ ] Limpiar referencia a `StoryboardType` commercial/technical en UI
+  - El tipo activo es `'infographic'`, lógica de `'technical'` y `'commercial'` como stubs legacy
+- [x] Actualizar `buildSystemPrompt` en storyboard.ts:
+  - Nuevo prompt para tipo `'infographic'`: 7 slides de arranque con estructura detallada por slide
+  - Formato `### Slide N — Título` con campos: Objetivo, Layout, Elementos visuales, Texto en imagen, Paleta
+- [x] Actualizar `buildUserPrompt`: usa `briefContent` (texto libre) + `brandMarkdown`
+- [x] Limpiar UI: `typeLabel` hardcodeado, descripción del estado vacío actualizada
+- [x] Validado en navegador: 7 slides generados correctamente desde `briefs.content`
 
 ---
 
