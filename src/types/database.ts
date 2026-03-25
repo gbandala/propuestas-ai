@@ -1,9 +1,21 @@
 export type UserRole = 'architect' | 'commercial' | 'admin'
 export type AiProvider = 'gemini' | 'openrouter'
+// Tipos activos en el nuevo flujo (propuesta unificada)
 export type AiTaskType =
+  | 'storyboard_infographic'
+  | 'infographic_slide_1'
+  | 'infographic_slide_2'
+  | 'infographic_slide_3'
+  | 'infographic_slide_4'
+  | 'infographic_slide_5'
+  | 'infographic_slide_6'
+  | 'infographic_slide_7'
+  | 'infographic_slide_8'
+  | 'infographic_slide_9'
+  | 'infographic_slide_10'
+  // Legado — conservados para logs históricos
   | 'storyboard_technical'
   | 'storyboard_commercial'
-  | 'storyboard_infographic'
   | 'infographic_v1'
   | 'infographic_v2'
   | 'infographic_v3'
@@ -22,10 +34,12 @@ export type AiTaskType =
 export type ProjectStatus = 'draft' | 'in_progress' | 'completed' | 'archived'
 export type InfographicType = 'technical' | 'roi' | 'roadmap'
 export type PresentationType = 'technical' | 'commercial'
-export type JobType = 'technical_infographics' | 'commercial_infographics' | 'technical_presentation' | 'commercial_presentation'
+// Tipos activos: 'proposal_infographics'. Legado conservado para jobs históricos.
+export type JobType = 'proposal_infographics' | 'technical_infographics' | 'commercial_infographics' | 'technical_presentation' | 'commercial_presentation'
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed'
 export type DownloadType = 'technical' | 'commercial' | 'complete'
-export type StoryboardType = 'technical' | 'commercial' | 'infographic'
+// Tipo activo: 'infographic'. Legado: 'technical', 'commercial'.
+export type StoryboardType = 'infographic' | 'technical' | 'commercial'
 
 export interface Profile {
   id: string
@@ -65,6 +79,16 @@ export interface BrandIdentity {
   id: string
   project_id: string
   markdown_content: string
+  logo_url: string | null
+  background_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Brief {
+  id: string
+  project_id: string
+  content: string
   created_at: string
   updated_at: string
 }
@@ -85,6 +109,7 @@ export interface Infographic {
   project_id: string
   type: InfographicType
   variant: number
+  slide_index: number | null  // posición en la propuesta (1-10), nuevo flujo
   url: string | null
   prompt_used: string | null
   selected: boolean
@@ -159,6 +184,11 @@ export interface Database {
         Row: Project
         Insert: Omit<Project, 'id' | 'created_at' | 'updated_at' | 'technical_completed_at' | 'commercial_completed_at'>
         Update: Partial<Omit<Project, 'id' | 'created_at' | 'user_id'>>
+      }
+      briefs: {
+        Row: Brief
+        Insert: Omit<Brief, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<Brief, 'id' | 'created_at'>>
       }
       technical_briefs: {
         Row: TechnicalBrief
