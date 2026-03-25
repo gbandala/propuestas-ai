@@ -69,10 +69,10 @@ export default async function BrandIdentityPage({ params }: BrandPageProps) {
 
         <div className="flex justify-end">
           <Link
-            href={`/projects/${id}/technical`}
+            href={`/projects/${id}/brief`}
             className="inline-flex rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
-            Continuar al Brief Tecnico →
+            Continuar al Brief →
           </Link>
         </div>
       </div>

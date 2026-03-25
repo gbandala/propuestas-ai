@@ -80,15 +80,19 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 2 — Brief (nuevo formulario de un paso)
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Crear Server Action `src/actions/brief.ts` (getBrief, saveBrief)
-- [ ] Crear componente `src/features/brief/components/BriefForm.tsx`
-  - Textarea grande con ~60 filas
-  - 8 labels/títulos como guía visual sobre el textarea
-  - Auto-save o botón guardar
-- [ ] Crear página `src/app/(main)/projects/[id]/brief/page.tsx`
-- [ ] Conectar al flujo de navegación del proyecto
+- [x] Crear Server Action `src/actions/brief.ts` (getBrief, saveBrief)
+- [x] Crear componente `src/features/brief/components/BriefForm.tsx`
+  - Textarea grande con 60 filas + font-mono
+  - 8 labels en banner azul como guía visual
+  - Botón "Guardar Brief" — guarda en `briefs` + marca `technical_completed_at`
+  - Estado "Brief guardado" + botón "Continuar al Storyboard →" al guardar
+- [x] Crear página `src/app/(main)/projects/[id]/brief/page.tsx`
+- [x] Actualizar página de proyecto `[id]/page.tsx`:
+  - Nuevo flujo de 5 pasos (Marca → Brief → Storyboard → Infografías → PPT)
+  - Eliminada "Fase Comercial" y referencias a rol architect
+- [x] Actualizar `[id]/brand/page.tsx`: link apunta a `/brief` en vez de `/technical`
 
 ---
 

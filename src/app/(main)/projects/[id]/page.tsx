@@ -16,89 +16,66 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
   const project = result.data
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user!.id)
-    .single()
 
-  const isArchitect = profile?.role === 'architect' || profile?.role === 'admin' || project.user_id === user!.id
-  const technicalDone = !!project.technical_completed_at
+  const briefCompleted = !!project.technical_completed_at
 
-  // Verificar brand identity, storyboards y estado de infografias
-  const [brandResult, infographicStoryboardResult, presentationStoryboardResult, infographicsResult, presentationResult] = await Promise.all([
+  // Verificar brand identity, storyboard y estado de infografias
+  const [brandResult, storyboardResult, infographicsResult, briefResult] = await Promise.all([
     supabase.from('brand_identity').select('id').eq('project_id', id).maybeSingle(),
     supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'infographic').order('version', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'technical').order('version', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('infographics').select('id, selected').eq('project_id', id),
-    supabase.from('presentations').select('id, html_content').eq('project_id', id).eq('type', 'technical').maybeSingle(),
+    supabase.from('infographics').select('id').eq('project_id', id),
+    supabase.from('briefs').select('id').eq('project_id', id).maybeSingle(),
   ])
 
   const hasBrand = !!brandResult.data
-  const infographicStoryboardApproved = !!infographicStoryboardResult.data?.approved_at
-  const presentationStoryboardApproved = !!presentationStoryboardResult.data?.approved_at
-  const hasInfographics = (infographicsResult.data?.length ?? 0) > 0
-  const hasPresentation = !!presentationResult.data?.html_content
+  const hasBrief = !!briefResult.data
+  const storyboardApproved = !!storyboardResult.data?.approved_at
+  const infographicsCount = infographicsResult.data?.length ?? 0
+  const hasInfographics = infographicsCount > 0
 
   const steps = [
     {
       number: 1,
       label: 'Identidad de Marca',
-      description: 'Colores, tipografia, logo y tono visual del cliente.',
+      description: 'Colores, tipografia, logo y fondo para las infografias.',
       done: hasBrand,
       href: `/projects/${id}/brand`,
-      visible: isArchitect,
       locked: false,
     },
     {
       number: 2,
-      label: 'Brief Tecnico',
-      description: 'Captura del discovery: problema, ROI, funcionalidades y stack.',
-      done: technicalDone,
-      href: `/projects/${id}/technical`,
-      visible: isArchitect,
+      label: 'Brief del Proyecto',
+      description: 'Captura libre del discovery: problema, ROI, solucion, entregables y roadmap.',
+      done: briefCompleted,
+      href: `/projects/${id}/brief`,
       locked: false,
     },
     {
       number: 3,
-      label: 'Storyboard de Infografias',
-      description: 'Borrador textual de las 3 piezas visuales. Aprobar antes de generar.',
-      done: infographicStoryboardApproved,
+      label: 'Storyboard de la Propuesta',
+      description: 'Borrador textual de los 7 slides. Editar, iterar y aprobar antes de generar.',
+      done: storyboardApproved,
       href: `/projects/${id}/storyboard?type=infographic`,
-      visible: isArchitect,
-      locked: !technicalDone,
-      lockedReason: 'Requiere el brief tecnico completado.',
+      locked: !briefCompleted,
+      lockedReason: 'Requiere el brief completado.',
     },
     {
       number: 4,
-      label: 'Infografias Tecnicas',
-      description: '3 variantes con IA. Puedes seleccionar una para incluirla en la presentacion.',
+      label: 'Infografias de la Propuesta',
+      description: `${infographicsCount > 0 ? `${infographicsCount} imagen${infographicsCount !== 1 ? 'es' : ''} generada${infographicsCount !== 1 ? 's' : ''}` : '7 slides como imagenes'} — ampliar, descargar o regenerar individualmente.`,
       done: hasInfographics,
       href: `/projects/${id}/infographics`,
-      visible: isArchitect,
-      locked: !infographicStoryboardApproved,
-      lockedReason: 'Requiere el storyboard de infografias aprobado.',
+      locked: !storyboardApproved,
+      lockedReason: 'Requiere el storyboard aprobado.',
     },
     {
       number: 5,
-      label: 'Storyboard de Presentacion',
-      description: 'Borrador textual de los 10 slides. Aprobar antes de generar la presentacion.',
-      done: presentationStoryboardApproved,
-      href: `/projects/${id}/storyboard?type=technical`,
-      visible: isArchitect,
+      label: 'Descargar Propuesta PPT',
+      description: 'Empaqueta todas las infografias en un archivo PowerPoint listo para presentar.',
+      done: false,
+      href: `/projects/${id}/presentation/technical`,
       locked: !hasInfographics,
       lockedReason: 'Requiere tener infografias generadas.',
-    },
-    {
-      number: 6,
-      label: 'Presentacion Tecnica',
-      description: 'Presentacion HTML de 10 slides generada con IA.',
-      done: hasPresentation,
-      href: `/projects/${id}/presentation/technical`,
-      visible: isArchitect,
-      locked: !presentationStoryboardApproved,
-      lockedReason: 'Requiere el storyboard de presentacion aprobado.',
     },
   ]
 
@@ -121,93 +98,50 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <p className="mt-4 text-gray-600">{project.description}</p>
         )}
 
-        {/* Flujo Tecnico */}
-        {isArchitect && (
-          <div className="mt-8">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Fase Tecnica</h2>
-            <div className="space-y-3">
-              {steps.map((step) => {
-                if (!step.visible) return null
-                return (
-                  <div
-                    key={step.number}
-                    className={`rounded-lg border-2 p-5 transition-colors ${
-                      step.locked
-                        ? 'border-gray-200 bg-gray-50 opacity-60'
-                        : step.done
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-blue-200 bg-blue-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
-                          step.locked ? 'bg-white text-gray-400 border border-gray-300' : step.done ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
-                        }`}>
-                          {!step.locked && step.done ? '✓' : step.number}
-                        </span>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{step.label}</h3>
-                          <p className="text-sm text-gray-600">{step.description}</p>
-                        </div>
-                      </div>
-                      <div>
-                        {step.locked ? (
-                          <span className="text-xs text-gray-400">🔒 {step.lockedReason}</span>
-                        ) : (
-                          <Link
-                            href={step.href}
-                            className={`inline-flex rounded-md px-4 py-1.5 text-sm font-medium text-white ${
-                              step.done ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                            }`}
-                          >
-                            {step.done ? 'Ver' : 'Completar →'}
-                          </Link>
-                        )}
-                      </div>
+        {/* Flujo de propuesta */}
+        <div className="mt-8">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Propuesta</h2>
+          <div className="space-y-3">
+            {steps.map((step) => (
+              <div
+                key={step.number}
+                className={`rounded-lg border-2 p-5 transition-colors ${
+                  step.locked
+                    ? 'border-gray-200 bg-gray-50 opacity-60'
+                    : step.done
+                    ? 'border-green-200 bg-green-50'
+                    : 'border-blue-200 bg-blue-50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold ${
+                      step.locked ? 'bg-white text-gray-400 border border-gray-300' : step.done ? 'bg-green-500 text-white' : 'bg-white text-gray-600 border border-gray-300'
+                    }`}>
+                      {!step.locked && step.done ? '✓' : step.number}
+                    </span>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{step.label}</h3>
+                      <p className="text-sm text-gray-600">{step.description}</p>
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Fase Comercial */}
-        <div className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Fase Comercial</h2>
-          <div className={`rounded-lg border-2 p-5 ${
-            !technicalDone
-              ? 'border-gray-200 bg-gray-50 opacity-60'
-              : project.commercial_completed_at
-              ? 'border-green-200 bg-green-50'
-              : 'border-purple-200 bg-purple-50'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-gray-900">Propuesta Comercial</h3>
-                  {!technicalDone && <span className="text-xs text-gray-400">🔒 Bloqueada</span>}
-                  {project.commercial_completed_at && <span className="text-sm font-medium text-green-600">✓ Completada</span>}
+                  <div>
+                    {step.locked ? (
+                      <span className="text-xs text-gray-400">🔒 {step.lockedReason}</span>
+                    ) : (
+                      <Link
+                        href={step.href}
+                        className={`inline-flex rounded-md px-4 py-1.5 text-sm font-medium text-white ${
+                          step.done ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                      >
+                        {step.done ? 'Ver' : 'Ir →'}
+                      </Link>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-1 text-sm text-gray-600">
-                  Propuesta, infografias de ROI/Roadmap y presentacion ejecutiva.
-                </p>
-                {!technicalDone && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Requiere la fase tecnica completada para habilitarse.
-                  </p>
-                )}
               </div>
-              {technicalDone && (
-                <Link
-                  href={`/projects/${id}/commercial`}
-                  className="inline-flex rounded-md bg-purple-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-purple-700"
-                >
-                  {project.commercial_completed_at ? 'Ver propuesta' : 'Completar →'}
-                </Link>
-              )}
-            </div>
+            ))}
           </div>
         </div>
 
