@@ -15,19 +15,6 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  // Cargar slides del proyecto
-  const { data: slides, error } = await supabase
-    .from('presentation_slides')
-    .select('slide_number, url')
-    .eq('project_id', projectId)
-    .eq('type', type)
-    .order('slide_number', { ascending: true })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!slides || slides.length === 0) {
-    return NextResponse.json({ error: 'No hay slides generados para este proyecto.' }, { status: 404 })
-  }
-
   // Nombre del proyecto para el archivo
   const { data: project } = await supabase
     .from('projects')
@@ -38,13 +25,51 @@ export async function GET(req: NextRequest) {
   const projectName = project?.name ?? 'Presentacion'
   const clientName = project?.client_name ?? ''
 
+  // --- Flujo propuesta: infografías ordenadas por slide_index ---
+  let slidesData: Array<{ slideNumber: number; url: string }>
+
+  if (type === 'proposal') {
+    const { data: infographics, error: infError } = await supabase
+      .from('infographics')
+      .select('slide_index, url')
+      .eq('project_id', projectId)
+      .not('slide_index', 'is', null)
+      .not('url', 'is', null)
+      .order('slide_index', { ascending: true })
+
+    if (infError) return NextResponse.json({ error: infError.message }, { status: 500 })
+    if (!infographics || infographics.length === 0) {
+      return NextResponse.json({ error: 'No hay infografías generadas para este proyecto.' }, { status: 404 })
+    }
+
+    slidesData = infographics.map((inf) => ({
+      slideNumber: inf.slide_index!,
+      url: inf.url!,
+    }))
+  } else {
+    // --- Flujo legacy: presentation_slides ---
+    const { data: slides, error } = await supabase
+      .from('presentation_slides')
+      .select('slide_number, url')
+      .eq('project_id', projectId)
+      .eq('type', type)
+      .order('slide_number', { ascending: true })
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!slides || slides.length === 0) {
+      return NextResponse.json({ error: 'No hay slides generados para este proyecto.' }, { status: 404 })
+    }
+
+    slidesData = slides.map((s) => ({ slideNumber: s.slide_number, url: s.url }))
+  }
+
   // Descargar imágenes en paralelo
   const imageBuffers = await Promise.all(
-    slides.map(async (slide) => {
+    slidesData.map(async (slide) => {
       const res = await fetch(slide.url)
-      if (!res.ok) throw new Error(`Error descargando slide ${slide.slide_number}`)
+      if (!res.ok) throw new Error(`Error descargando slide ${slide.slideNumber}`)
       const buf = await res.arrayBuffer()
-      return { slideNumber: slide.slide_number, buffer: buf }
+      return { slideNumber: slide.slideNumber, buffer: buf }
     })
   )
 
@@ -54,7 +79,9 @@ export async function GET(req: NextRequest) {
   pptx.layout = 'LAYOUT_WIDE' // 13.33" x 7.5" (16:9)
   pptx.author = 'PropuestasAI'
   pptx.company = clientName
-  pptx.title = `${projectName} — Presentación Técnica`
+  pptx.title = type === 'proposal'
+    ? `${projectName} — Propuesta`
+    : `${projectName} — Presentación Técnica`
 
   for (const { slideNumber, buffer } of imageBuffers.sort((a, b) => a.slideNumber - b.slideNumber)) {
     const slide = pptx.addSlide()
@@ -72,7 +99,8 @@ export async function GET(req: NextRequest) {
   // Generar como buffer
   const pptxBuffer = await pptx.write({ outputType: 'nodebuffer' }) as unknown as Buffer
 
-  const filename = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_tecnica.pptx`
+  const suffix = type === 'proposal' ? 'propuesta' : 'tecnica'
+  const filename = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}.pptx`
   const uint8 = new Uint8Array(pptxBuffer)
 
   return new NextResponse(uint8, {

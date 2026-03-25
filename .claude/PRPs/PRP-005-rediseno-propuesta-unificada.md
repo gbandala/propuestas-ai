@@ -152,13 +152,17 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 6 — PPT (ajustar input)
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Actualizar `src/app/api/presentation/download-pptx/route.ts`:
-  - Leer infografías de `infographics` ordenadas por `slide_index`
-  - En vez de leer `presentation_slides`
-  - Mantener lógica pptxgenjs existente (full-screen image per slide)
-- [ ] Actualizar botón de descarga en UI para apuntar al nuevo endpoint
+- [x] Actualizar `src/app/api/presentation/download-pptx/route.ts`:
+  - Nuevo parámetro `type=proposal`: lee `infographics` con `slide_index IS NOT NULL` ordenadas por `slide_index`
+  - Legacy `type=technical`: mantiene lectura de `presentation_slides` sin cambios
+  - Filename y título del PPT actualizados según tipo
+- [x] Reescribir `src/app/(main)/projects/[id]/presentation/technical/page.tsx`:
+  - Nuevo flujo: verifica storyboard infographic aprobado + al menos 1 infografía
+  - Muestra grid de preview de slides con número
+  - Botón de descarga apunta a `?type=proposal`
+  - Guards redirigen a infografías si no hay imágenes generadas
 
 ---
 
