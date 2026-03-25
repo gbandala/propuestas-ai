@@ -129,20 +129,25 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 5 — Generación de infografías (ajustar prompts por slide)
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Actualizar `src/features/infographic-generation/services/prompt-builder.ts`:
-  - 7 layouts específicos por tema de slide (ROI, problema, flujo, arquitectura, etc.)
-  - Si `brand_identity.logo_url` existe: incluir descripción/instrucción en el prompt
-  - Si `brand_identity.background_url` existe: incluir como referencia de fondo
-- [ ] Actualizar `src/app/api/infographics/generate/route.ts`:
-  - Leer `slide_index` del job en vez de `variant`
-  - Guardar `slide_index` en `infographics`
-  - Usar nueva lógica de prompt por slide_index
-- [ ] Actualizar la UI de infografías:
-  - Mostrar en orden por `slide_index` (no por variante)
-  - Mantener: ampliar (lightbox), descargar individual, regenerar con comentario
-  - Permitir agregar slide extra (genera storyboard entry + imagen nueva con slide_index N+1)
+- [x] Actualizar `src/features/infographic-generation/services/prompt-builder.ts`:
+  - Nueva función `buildProposalSlidePrompt` con 7 layouts específicos por tema
+  - Extrae colores hex del brand identity markdown automáticamente
+  - Incluye instrucciones de logo y fondo si están presentes
+- [x] Actualizar `src/app/api/infographics/generate/route.ts`:
+  - Detecta flujo por presencia de `slideNumber` vs `variant` en el body
+  - Lee storyboard aprobado y extrae contenido del slide por `slideNumber`
+  - Guarda con `slide_index = slideNumber` en `infographics`
+  - Usa `AiTaskType` `infographic_slide_N` para el log
+- [x] Nueva acción `generateProposalInfographics`: lee storyboard aprobado, crea N jobs
+- [x] Nueva acción `getProposalInfographics`: devuelve jobs activos + infografías + slides del storyboard
+- [x] Nueva acción `retryProposalSlide`: reintenta un slide individual
+- [x] Nuevo store `proposal.store.ts`: dinámico para N slides (vs hardcoded 1|2|3)
+- [x] Nuevo hook `useProposalJobProgress`: mapea jobId → slideIndex para realtime
+- [x] Nuevos componentes: `ProposalInfographicGenerator`, `ProposalSlideCard`, `ProposalLightbox`
+- [x] Página `/infographics` actualizada: usa `ProposalInfographicGenerator`, verifica `briefs` (no `technical_briefs`)
+- [x] Build limpio, typecheck limpio
 
 ---
 

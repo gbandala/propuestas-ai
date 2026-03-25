@@ -142,6 +142,7 @@ export interface GenerationJob {
   type: JobType
   status: JobStatus
   progress: number
+  slide_number: number | null
   error: string | null
   created_at: string
   updated_at: string

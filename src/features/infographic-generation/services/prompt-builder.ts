@@ -1,9 +1,74 @@
+import { DEFAULT_COLORS } from '@/shared/constants/brand'
 import type { StepData } from '@/features/technical-brief/types'
 
 interface BrandColors {
   primary: string
   secondary: string
   accent: string
+}
+
+/** Extrae los primeros 3 colores hex del markdown de marca */
+function extractBrandColors(brandMarkdown: string): BrandColors {
+  const matches = [...brandMarkdown.matchAll(/#([0-9A-Fa-f]{6})\b/g)].map((m) => `#${m[1]}`)
+  return {
+    primary: matches[0] ?? DEFAULT_COLORS.primary,
+    secondary: matches[1] ?? DEFAULT_COLORS.secondary,
+    accent: matches[2] ?? DEFAULT_COLORS.accent,
+  }
+}
+
+const SLIDE_LAYOUT_HINTS: Record<number, string> = {
+  1: 'Executive summary with ROI. Hero metric center-stage (e.g. "70% reducción de tiempo"), supporting KPI cards below. Bold numbers, short labels. Use primary color for the hero metric.',
+  2: 'Problem vs Solution. Split layout: left side shows pain points (red/orange icons and labels), right side shows solution benefits (green icons). Arrow or divider in center.',
+  3: 'Technical solution flow. Left-to-right data flow: Input blocks → Processing blocks → Output blocks. Colored rounded rectangles connected by arrows. Swimlane style.',
+  4: 'System architecture. Layered boxes: Frontend / Backend / Database / Integrations. Cloud-style component diagram. Icons per service, connection lines between layers.',
+  5: 'Deliverables grid. 4–6 card items, each with an icon and short label. Clean 2×3 or 3×2 grid. Each card uses accent color border.',
+  6: 'Project roadmap. Horizontal Gantt/timeline. Phase bars left to right, milestones marked with diamonds, phase labels above, durations shown.',
+  7: 'Investment model. Payment schedule table or staged card layout. Amounts, timing, and what is included per stage. Professional finance infographic style.',
+}
+
+/**
+ * Genera el prompt de imagen para un slide de la propuesta.
+ * Usa el contenido real del storyboard como fuente de verdad.
+ */
+export function buildProposalSlidePrompt(
+  slideNumber: number,
+  slideTitle: string,
+  slideContent: string,
+  brandMarkdown: string,
+  logoUrl?: string | null,
+  backgroundUrl?: string | null,
+): string {
+  const colors = extractBrandColors(brandMarkdown)
+  const layoutHint = SLIDE_LAYOUT_HINTS[slideNumber] ?? `Informative infographic for slide ${slideNumber}.`
+
+  const lines: string[] = []
+  lines.push(`Create a professional proposal infographic slide titled: "${slideTitle}"`)
+  lines.push(``)
+  lines.push(`LAYOUT TYPE: ${layoutHint}`)
+  lines.push(``)
+  lines.push(`CONTENT (from approved storyboard):`)
+  lines.push(slideContent)
+  lines.push(``)
+  lines.push(`VISUAL STYLE:`)
+  lines.push(`- Size: 1280x960px PNG, clean white or very light background`)
+  lines.push(`- Primary color: ${colors.primary}`)
+  lines.push(`- Secondary color: ${colors.secondary}`)
+  lines.push(`- Accent color: ${colors.accent}`)
+  lines.push(`- Font: modern sans-serif, no decorative fonts`)
+  lines.push(`- Style: corporate professional, clean, no watermarks, no blurry text`)
+
+  if (backgroundUrl) {
+    lines.push(`- Background style: subtle, light, clean — inspired by corporate brand`)
+  }
+  if (logoUrl) {
+    lines.push(`- Reserve a small logo placeholder in the top-right corner`)
+  }
+
+  lines.push(``)
+  lines.push(`IMPORTANT: DO NOT include code snippets, ASCII art, or large text blocks. DO include: icons, colored shapes, charts, arrows, clear short labels. Use real data and metrics from the storyboard content above.`)
+
+  return lines.join('\n')
 }
 
 export function buildTechnicalPrompt(
