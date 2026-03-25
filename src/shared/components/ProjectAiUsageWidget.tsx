@@ -58,14 +58,6 @@ export async function ProjectAiUsageWidget({ projectId }: ProjectAiUsageWidgetPr
                 </span>
               </div>
             )}
-            {byTaskType.slides > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Slides</span>
-                <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">
-                  {byTaskType.slides}
-                </span>
-              </div>
-            )}
           </div>
         </>
       )}

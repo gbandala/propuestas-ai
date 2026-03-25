@@ -220,7 +220,9 @@ export async function getProjectAiSummary(
     totalTokens += row.total_tokens ?? 0
     totalCostUsd += Number(row.cost_usd ?? 0)
     if (row.task_type?.startsWith('storyboard')) storyboard++
+    // infographic_slide_N (nuevo flujo) + infographic_v1/v2/v3 (legacy)
     if (row.task_type?.startsWith('infographic')) infographics++
+    // slide_technical_N (legacy presentación técnica)
     if (row.task_type?.startsWith('slide_')) slides++
   }
 

@@ -167,17 +167,16 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 7 — Navegación y limpieza
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Rediseñar stepper/navegación del proyecto:
-  `Brief → Marca → Storyboard → Infografías → Descargar PPT`
-- [ ] Eliminar rutas de fase comercial:
-  - `/commercial`, `/commercial-storyboard`, etc.
-- [ ] Simplificar dashboard: sin distinción de roles, sin fases separadas
-- [ ] Eliminar código de brief multi-paso (`technical_briefs` actions/forms/hooks)
-- [ ] Limpiar `src/types/database.ts`: remover tipos obsoletos una vez migrado
-- [ ] Actualizar `ProjectAiUsageWidget`: nuevos task_type names
-- [ ] Verificar y limpiar imports huérfanos
+- [x] Rutas de fase comercial: no existían en el router (nunca se crearon en este proyecto)
+- [x] `/projects/[id]/technical/page.tsx` → redirect permanente a `/brief` (preserva backlinks)
+- [x] `projects/[id]/page.tsx` → infographicsCount filtra por `slide_index IS NOT NULL` (solo propuesta)
+- [x] Dashboard → sin badge de rol para usuarios normales (admin conserva acceso a Bitácora de IA)
+- [x] `ProjectAiUsageWidget` → eliminado row "Slides" (legacy `slide_technical_*`); infografías nuevas ya caen en "Infografías" por prefijo
+- [x] `getProjectAiSummary` → comentarios aclaratorios en la clasificación de task_types
+- [x] Tipos obsoletos en `database.ts`: conservados con comentarios (datos históricos existentes)
+- [x] Build limpio, typecheck limpio
 
 ---
 

@@ -23,7 +23,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const [brandResult, storyboardResult, infographicsResult, briefResult] = await Promise.all([
     supabase.from('brand_identity').select('id').eq('project_id', id).maybeSingle(),
     supabase.from('storyboards').select('id, approved_at').eq('project_id', id).eq('type', 'infographic').order('version', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('infographics').select('id').eq('project_id', id),
+    supabase.from('infographics').select('id').eq('project_id', id).not('slide_index', 'is', null),
     supabase.from('briefs').select('id').eq('project_id', id).maybeSingle(),
   ])
 

@@ -11,19 +11,14 @@ export default async function DashboardPage() {
     ? await supabase.from('profiles').select('role').eq('id', user.id).single()
     : { data: null }
 
+  const isAdmin = profile?.role === 'admin'
+
   return (
     <div className="min-h-screen p-8">
       <div className="mb-6 flex items-center justify-between">
-        <p className="text-sm text-gray-500">
-          {user?.email}
-          {profile?.role && (
-            <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-              {profile.role}
-            </span>
-          )}
-        </p>
+        <p className="text-sm text-gray-500">{user?.email}</p>
         <div className="flex items-center gap-2">
-          {profile?.role === 'admin' && (
+          {isAdmin && (
             <Link
               href="/admin/ai-usage"
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
