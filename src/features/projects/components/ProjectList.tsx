@@ -11,7 +11,6 @@ export function ProjectList() {
   const { profile } = useAuth()
   const [showModal, setShowModal] = useState(false)
 
-  const isArchitect = profile?.role === 'architect'
   const isAdmin = profile?.role === 'admin'
 
   if (loading) {
@@ -33,27 +32,23 @@ export function ProjectList() {
             {projects.length} proyecto{projects.length !== 1 ? 's' : ''} activo{projects.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {(isArchitect || isAdmin) && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            + Nuevo proyecto
-          </button>
-        )}
+        <button
+          onClick={() => setShowModal(true)}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          + Nuevo proyecto
+        </button>
       </div>
 
       {projects.length === 0 ? (
         <div className="mt-12 text-center">
           <p className="text-gray-500">No hay proyectos todavía.</p>
-          {(isArchitect || isAdmin) && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="mt-4 text-sm font-medium text-blue-600 hover:underline"
-            >
-              Crear el primer proyecto →
-            </button>
-          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="mt-4 text-sm font-medium text-blue-600 hover:underline"
+          >
+            Crear el primer proyecto →
+          </button>
         </div>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -61,7 +56,7 @@ export function ProjectList() {
             <ProjectCard
               key={project.id}
               project={project}
-              canArchive={isArchitect || isAdmin}
+              canArchive={isAdmin}
               onArchive={archiveProject}
             />
           ))}

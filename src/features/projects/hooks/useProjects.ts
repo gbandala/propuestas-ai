@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { getProjects, createProject, archiveProject } from '@/actions/projects'
+import { getProjectsWithProgress, createProject, archiveProject } from '@/actions/projects'
 import { useProjectsStore } from '../store/projects.store'
 import type { CreateProjectInput } from '@/actions/projects'
 
@@ -12,7 +12,7 @@ export function useProjects() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const result = await getProjects()
+      const result = await getProjectsWithProgress()
       if ('data' in result) setProjects(result.data)
       setLoading(false)
     }
