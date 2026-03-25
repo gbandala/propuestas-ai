@@ -97,17 +97,19 @@ Descargar PPT (empaqueta todas las infografías en orden)
 ---
 
 ### FASE 3 — Brand Identity (ampliar con logo y fondo)
-**Estado: Pendiente**
+**Estado: ✅ Completada**
 
-- [ ] Actualizar `src/actions/brand-identity.ts`: incluir `logo_url` y `background_url`
-- [ ] Actualizar `src/features/brand-identity/components/BrandIdentityForm.tsx`:
-  - Agregar upload de logo (PNG/SVG, max 2MB, opcional)
-  - Agregar upload de fondo (PNG/JPG, max 5MB, opcional)
-  - Vista previa de imagen subida
-- [ ] Subir a Supabase Storage bucket `project-assets`
-  - Path logo: `projects/{projectId}/brand/logo.{ext}`
-  - Path fondo: `projects/{projectId}/brand/background.{ext}`
-- [ ] Guardar URLs en `brand_identity.logo_url` y `brand_identity.background_url`
+- [x] Actualizar `src/actions/brand-identity.ts`:
+  - `getBrandIdentity` retorna `logo_url` y `background_url`
+  - Nueva action `uploadBrandImage(projectId, formData, type)`: sube a Storage y guarda URL en DB
+  - Nueva action `removeBrandImage(projectId, type)`: limpia URL en DB
+- [x] Actualizar `src/features/brand-identity/types/index.ts`: `logo_url`, `background_url` en `BrandIdentityData`
+- [x] Actualizar `src/features/brand-identity/components/BrandIdentityEditor.tsx`:
+  - Nueva sección "Imágenes de Marca" debajo del editor markdown
+  - Dos cards: Logo (PNG/SVG/JPG, máx 2MB) y Fondo (PNG/JPG, máx 5MB)
+  - Upload via `useTransition` + Server Action con FormData
+  - Preview de imagen, botón "Eliminar" y "Cambiar imagen"
+- [x] Storage path: `projects/{projectId}/brand/{logo|background}.{ext}` (upsert)
 
 ---
 

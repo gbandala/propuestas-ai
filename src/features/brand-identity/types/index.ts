@@ -2,6 +2,8 @@ export interface BrandIdentityData {
   id: string
   project_id: string
   markdown_content: string
+  logo_url: string | null
+  background_url: string | null
   created_at: string
   updated_at: string
 }
