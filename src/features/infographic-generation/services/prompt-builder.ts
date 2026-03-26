@@ -59,10 +59,10 @@ export function buildProposalSlidePrompt(
   lines.push(`- Style: corporate professional, clean, no watermarks, no blurry text`)
 
   if (backgroundUrl) {
-    lines.push(`- Background style: subtle, light, clean — inspired by corporate brand`)
+    lines.push(`- IMPORTANT: Use the provided background image (above) as the base background of this infographic. Keep text and graphics readable on top of it.`)
   }
   if (logoUrl) {
-    lines.push(`- Reserve a small logo placeholder in the top-right corner`)
+    lines.push(`- Top-right corner: leave a 160x90px clean white/transparent area for the company logo (will be composited after generation)`)
   }
 
   lines.push(``)

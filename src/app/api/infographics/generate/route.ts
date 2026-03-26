@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
     let prompt: string
     let taskType: AiTaskType
     let slideIndex: number | null = null
+    let backgroundUrl: string | null = null
 
     if (isProposalFlow) {
       // --- Flujo propuesta: N slides desde storyboard ---
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle(),
         supabase
           .from('brand_identity')
-          .select('markdown_content, logo_url, background_url')
+          .select('markdown_content, background_url')
           .eq('project_id', projectId)
           .maybeSingle(),
       ])
@@ -107,10 +108,9 @@ export async function POST(req: NextRequest) {
         slideNumber
       )
       const brandMarkdown = brandResult.data?.markdown_content ?? ''
-      const logoUrl = brandResult.data?.logo_url ?? null
-      const backgroundUrl = brandResult.data?.background_url ?? null
+      backgroundUrl = brandResult.data?.background_url ?? null
 
-      prompt = buildProposalSlidePrompt(slideNumber, title, content, brandMarkdown, logoUrl, backgroundUrl)
+      prompt = buildProposalSlidePrompt(slideNumber, title, content, brandMarkdown, null, backgroundUrl)
       taskType = `infographic_slide_${Math.min(slideNumber, 10) as 1}` as AiTaskType
       slideIndex = slideNumber
     } else {
@@ -133,7 +133,10 @@ export async function POST(req: NextRequest) {
       .update({ progress: 30, updated_at: new Date().toISOString() })
       .eq('id', jobId)
 
-    const { buffer: imageBuffer, meta } = await generateImage(prompt)
+    const { buffer: imageBuffer, meta } = await generateImage(
+      prompt,
+      isProposalFlow ? { backgroundImageUrl: backgroundUrl } : undefined
+    )
 
     await supabase
       .from('generation_jobs')

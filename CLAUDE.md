@@ -233,6 +233,13 @@ execute_sql, apply_migration, list_tables, get_advisors
 
 ---
 
+## Context Management
+
+- Check context usage periodically. When /context shows usage above 80%, run /compact with a focus instruction before continuing.
+- After any major task milestone, run /compact to preserve key decisions.
+
+---
+
 ## Reglas de Codigo
 
 - **KISS**: Soluciones simples

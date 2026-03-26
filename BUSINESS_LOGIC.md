@@ -1,6 +1,6 @@
 # BUSINESS_LOGIC.md - PropuestasAI
 
-> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-25
+> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-26
 
 ---
 
@@ -54,9 +54,10 @@
    - Cada slide tiene prompts con layout específico según su tipo (ROI, flujo, arquitectura, etc.)
    - Generación async: fire-and-forget + polling cada 3s
    - Cards con estado en tiempo real (pendiente / generando / listo / error)
-   - Retry individual por slide
+   - Retry individual por slide — botón deshabilitado durante generación Y descarga de imagen (re-habilita solo cuando el browser termina de cargar los bytes)
    - Lightbox de preview con navegación por teclado
    - Cada infografía se guarda en `infographics.slide_index`
+   - Las imágenes se generan sin compositing de logo (solo imagen de fondo + contenido IA)
 
 #### Fase 4: Descarga PPTX
 7. Con al menos 1 infografía generada, usuario descarga el PPTX
@@ -173,7 +174,8 @@ src/features/
 5. **Generación de infografías con IA:**
    - Modelo: `google/gemini-2.0-flash-exp:free` via OpenRouter (fallback automático si falla)
    - 1 infografía por slide del storyboard (7–10 imágenes), 1376×768 px
-   - Prompt por slide: incluye título, contenido del slide, identidad de marca (colores, logo, fondo) y layout hint específico por tipo de slide
+   - Prompt por slide: incluye título, contenido del slide, identidad de marca (colores, fondo) y layout hint específico por tipo de slide
+   - Sin compositing de logo: la imagen final es la imagen generada por IA directamente (sin sharp overlay)
    - Guardar en Supabase Storage bajo `/projects/{id}/infographics/slide_{n}.png`
    - `slide_index` en tabla `infographics` identifica el slide; permite regenerar individualmente
 

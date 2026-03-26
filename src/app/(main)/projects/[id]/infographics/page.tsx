@@ -55,43 +55,37 @@ export default async function InfographicsPage({ params }: InfographicsPageProps
   const hasInfographics = (infographics?.length ?? 0) > 0
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px] lg:items-start">
-          {/* Contenido principal */}
-          <div className="min-w-0 space-y-6">
-            <div>
-              <Link href={`/projects/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
-                &larr; {project.name}
-              </Link>
-              <h1 className="mt-2 text-2xl font-bold text-gray-900">Infografías de la Propuesta</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Genera cada slide de la propuesta como imagen con IA. Todas van incluidas en el PPT final.
-              </p>
-            </div>
+    <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
+      <div className="mx-auto max-w-7xl space-y-4">
+        {/* Header compacto — título + créditos + botón PPT en la misma fila */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Link href={`/projects/${id}`} className="text-sm text-gray-500 hover:text-gray-700">
+              &larr; {project.name}
+            </Link>
+            <h1 className="mt-1 text-xl font-bold text-gray-900">Infografías de la Propuesta</h1>
+            <p className="text-sm text-gray-500">
+              Genera cada slide con IA. Todas van incluidas en el PPT final.
+            </p>
+          </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <ProposalInfographicGenerator projectId={id} />
-            </div>
-
+          {/* Créditos + PPT compactos arriba a la derecha */}
+          <div className="flex shrink-0 items-start gap-3">
+            <ProjectAiUsageWidget projectId={id} />
             {hasInfographics && (
-              <div className="flex justify-end">
-                <Link
-                  href={`/projects/${id}/presentation/technical`}
-                  className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Descargar PPT &rarr;
-                </Link>
-              </div>
+              <Link
+                href={`/projects/${id}/presentation/technical`}
+                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 whitespace-nowrap"
+              >
+                Descargar PPT &rarr;
+              </Link>
             )}
           </div>
+        </div>
 
-          {/* Sidebar */}
-          <div className="hidden lg:block">
-            <div className="sticky top-6">
-              <ProjectAiUsageWidget projectId={id} />
-            </div>
-          </div>
+        {/* Generador a ancho completo */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <ProposalInfographicGenerator projectId={id} />
         </div>
       </div>
     </div>

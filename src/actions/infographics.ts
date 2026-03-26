@@ -269,12 +269,14 @@ export async function generateProposalInfographics(
     if (j.slide_number) jobIdToSlide[j.id] = j.slide_number
   })
 
-  // Disparar generación por slide — fire-and-forget
-  jobs.forEach((j) => {
-    if (j.slide_number) {
-      triggerSlideGeneration(projectId, j.slide_number, j.id, accessToken)
+  // Disparar generación por slide con stagger de 600ms para no saturar OpenRouter
+  ;(async () => {
+    for (let i = 0; i < jobs.length; i++) {
+      const j = jobs[i]
+      if (j.slide_number) triggerSlideGeneration(projectId, j.slide_number, j.id, accessToken)
+      if (i < jobs.length - 1) await new Promise((r) => setTimeout(r, 600))
     }
-  })
+  })()
 
   return { data: { jobIdToSlide, slides } }
 }

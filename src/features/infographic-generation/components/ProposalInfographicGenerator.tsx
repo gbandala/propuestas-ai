@@ -132,50 +132,43 @@ export function ProposalInfographicGenerator({ projectId }: ProposalInfographicG
   const noSlides = slideOrder.length === 0
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">Infografías de la Propuesta</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            {slideOrder.length > 0
-              ? `${slideOrder.length} slides del storyboard. Genera todas con IA o usa ↺ para regenerar una sola.`
-              : 'Genera las infografías a partir del storyboard aprobado.'}
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Barra de acción compacta */}
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-gray-500">
+          {slideOrder.length > 0
+            ? `${slideOrder.length} slides · ${anyRunning ? 'Generando con IA…' : 'Usa ↺ para regenerar un slide.'}`
+            : 'Cargando slides del storyboard...'}
+        </p>
 
-        {!anyRunning && (
+        {!anyRunning && slideOrder.length > 0 && (
           <button
             onClick={handleGenerate}
             disabled={isStarting}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {isStarting
-              ? 'Iniciando...'
-              : anyCompleted
-              ? 'Regenerar todas'
-              : 'Generar infografías'}
+            {isStarting ? 'Iniciando...' : anyCompleted ? 'Regenerar todas' : 'Generar infografías'}
           </button>
         )}
       </div>
 
       {loadError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3">
           <p className="text-sm text-red-700">{loadError}</p>
         </div>
       )}
 
       {anyRunning && (
-        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5">
           <p className="text-sm text-blue-700">
-            Generando infografías con IA... Puede tardar 30–60 segundos por slide.
+            Generando con IA… puede tardar 30–60 s por slide.
           </p>
         </div>
       )}
 
-      {/* Grid de slides */}
+      {/* Grid de slides — 2 col → 3 col → 4 col */}
       {!noSlides && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
           {slideOrder.map((slideIndex) => (
             <ProposalSlideCard
               key={slideIndex}
@@ -190,9 +183,7 @@ export function ProposalInfographicGenerator({ projectId }: ProposalInfographicG
 
       {noSlides && !loadError && (
         <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-10 text-center">
-          <p className="text-sm text-gray-500">
-            Cargando slides del storyboard...
-          </p>
+          <p className="text-sm text-gray-500">Cargando slides del storyboard...</p>
         </div>
       )}
 

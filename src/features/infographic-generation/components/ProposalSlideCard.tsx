@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { GenerationProgressBar } from './GenerationProgressBar'
 import type { ProposalSlideState } from '../store/proposal.store'
@@ -23,14 +24,39 @@ function DownloadButton({ url, label }: { url: string; label: string }) {
 interface ProposalSlideCardProps {
   slideIndex: number
   state: ProposalSlideState
-  onRetry: (slideIndex: number) => void
+  onRetry: (slideIndex: number) => Promise<void>
   onZoom: (slideIndex: number) => void
 }
 
 export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: ProposalSlideCardProps) {
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [isImageLoading, setIsImageLoading] = useState(false)
+  const prevImageUrlRef = useRef(state.imageUrl)
+
   const isCompleted = state.status === 'completed'
   const isFailed = state.status === 'failed'
   const isLoading = state.status === 'pending' || state.status === 'running'
+
+  // Reset isRetrying once the polling confirms the job is running
+  useEffect(() => {
+    if (isLoading) setIsRetrying(false)
+  }, [isLoading])
+
+  // Detect when a new image URL arrives (regeneration completed) — show loading
+  // overlay until the browser finishes downloading the new image.
+  useEffect(() => {
+    if (state.imageUrl && state.imageUrl !== prevImageUrlRef.current) {
+      setIsImageLoading(true)
+      prevImageUrlRef.current = state.imageUrl
+    }
+  }, [state.imageUrl])
+
+  async function handleRetryClick() {
+    setIsRetrying(true)
+    await onRetry(slideIndex)
+  }
+
+  const buttonBusy = isRetrying || isImageLoading
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -67,16 +93,24 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
               fill
               className="object-cover"
               unoptimized
+              onLoad={() => setIsImageLoading(false)}
             />
-            <button
-              onClick={() => onZoom(slideIndex)}
-              className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-              title="Ver en detalle"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-              </svg>
-            </button>
+            {isImageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+              </div>
+            )}
+            {!isImageLoading && (
+              <button
+                onClick={() => onZoom(slideIndex)}
+                className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                title="Ver en detalle"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+            )}
           </>
         ) : isLoading ? (
           <div className="flex h-full items-center justify-center">
@@ -117,22 +151,26 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
 
         {isFailed && (
           <button
-            onClick={() => onRetry(slideIndex)}
-            className="w-full rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            onClick={handleRetryClick}
+            disabled={buttonBusy}
+            className="w-full rounded-lg border border-gray-200 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Reintentar
+            {buttonBusy ? 'Iniciando...' : 'Reintentar'}
           </button>
         )}
 
         {isCompleted && (
           <div className="flex gap-2">
-            {state.imageUrl && <DownloadButton url={state.imageUrl} label={`slide-${slideIndex}`} />}
+            {state.imageUrl && !isImageLoading && (
+              <DownloadButton url={state.imageUrl} label={`slide-${slideIndex}`} />
+            )}
             <button
-              onClick={() => onRetry(slideIndex)}
-              className="ml-auto rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              onClick={handleRetryClick}
+              disabled={buttonBusy}
+              className="ml-auto rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Regenerar este slide"
             >
-              ↺ Regenerar
+              {isRetrying ? '⟳ Iniciando...' : isImageLoading ? '⟳ Cargando...' : '↺ Regenerar'}
             </button>
           </div>
         )}

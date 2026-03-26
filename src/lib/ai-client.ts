@@ -38,6 +38,11 @@ export interface AiImageResult {
   meta: AiMeta
 }
 
+export interface AiImageOptions {
+  /** URL of a background/reference image to pass as multimodal input */
+  backgroundImageUrl?: string | null
+}
+
 export interface AiTextResult {
   text: string
   meta: AiMeta
@@ -47,9 +52,30 @@ export interface AiTextResult {
 // Generación de imágenes
 // ---------------------------------------------------------------------------
 
-async function generateImageViaGemini(prompt: string): Promise<AiImageResult> {
+async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg'
+    const mimeType = contentType.split(';')[0].trim()
+    const data = Buffer.from(await res.arrayBuffer()).toString('base64')
+    return { data, mimeType }
+  } catch {
+    return null
+  }
+}
+
+async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Promise<AiImageResult> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw Object.assign(new Error('GEMINI_API_KEY no configurada'), { isFallback: true })
+
+  // Build input parts — optionally prepend background image
+  const inputParts: Array<Record<string, unknown>> = []
+  if (opts?.backgroundImageUrl) {
+    const bg = await fetchImageAsBase64(opts.backgroundImageUrl)
+    if (bg) inputParts.push({ inlineData: { mimeType: bg.mimeType, data: bg.data } })
+  }
+  inputParts.push({ text: prompt })
 
   const t0 = Date.now()
   const response = await fetch(
@@ -58,7 +84,7 @@ async function generateImageViaGemini(prompt: string): Promise<AiImageResult> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts: inputParts }],
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       }),
     }
@@ -76,8 +102,8 @@ async function generateImageViaGemini(prompt: string): Promise<AiImageResult> {
 
   const data = await response.json() as GeminiResponse
   const latencyMs = Date.now() - t0
-  const parts = data.candidates?.[0]?.content?.parts ?? []
-  const imagePart = parts.find((p) => p.inlineData?.mimeType?.startsWith('image/'))
+  const responseParts = data.candidates?.[0]?.content?.parts ?? []
+  const imagePart = responseParts.find((p) => p.inlineData?.mimeType?.startsWith('image/'))
 
   if (imagePart?.inlineData?.data) {
     const usage = data.usageMetadata
@@ -97,9 +123,21 @@ async function generateImageViaGemini(prompt: string): Promise<AiImageResult> {
   throw Object.assign(new Error('Gemini no retornó imagen en la respuesta'), { isFallback: true })
 }
 
-async function generateImageViaOpenRouter(prompt: string): Promise<AiImageResult> {
+async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions): Promise<AiImageResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada')
+
+  // Build multimodal content: optionally include background image as input
+  let userContent: string | Array<Record<string, unknown>> = prompt
+  if (opts?.backgroundImageUrl) {
+    const bg = await fetchImageAsBase64(opts.backgroundImageUrl)
+    if (bg) {
+      userContent = [
+        { type: 'image_url', image_url: { url: `data:${bg.mimeType};base64,${bg.data}` } },
+        { type: 'text', text: prompt },
+      ]
+    }
+  }
 
   const t0 = Date.now()
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -112,7 +150,7 @@ async function generateImageViaOpenRouter(prompt: string): Promise<AiImageResult
     },
     body: JSON.stringify({
       model: OPENROUTER_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: userContent }],
       modalities: ['image', 'text'],
     }),
   })
@@ -136,9 +174,9 @@ async function generateImageViaOpenRouter(prompt: string): Promise<AiImageResult
     latencyMs,
   }
 
-  const content = message?.content
-  if (Array.isArray(content)) {
-    for (const part of content as ContentPart[]) {
+  // Helper to extract image from a list of content parts
+  async function extractFromParts(parts: ContentPart[]): Promise<AiImageResult | null> {
+    for (const part of parts) {
       if (part.type === 'image_url' && part.image_url?.url) {
         return { buffer: await imageUrlToBuffer(part.image_url.url), meta }
       }
@@ -146,8 +184,24 @@ async function generateImageViaOpenRouter(prompt: string): Promise<AiImageResult
         return { buffer: Buffer.from(part.inline_data.data, 'base64'), meta }
       }
     }
+    return null
   }
 
+  // 1) Try message.content (array of parts)
+  const content = message?.content
+  if (Array.isArray(content)) {
+    const result = await extractFromParts(content as ContentPart[])
+    if (result) return result
+  }
+
+  // 2) Try message.images (OpenRouter puts images here when content is null)
+  const images = (message as Record<string, unknown> | undefined)?.images
+  if (Array.isArray(images)) {
+    const result = await extractFromParts(images as ContentPart[])
+    if (result) return result
+  }
+
+  console.error('[ai-client] OpenRouter: no image found. content:', typeof content, '| images:', Array.isArray(images) ? images.length : 'none')
   throw new Error('OpenRouter no retornó imagen en la respuesta')
 }
 
@@ -161,13 +215,13 @@ async function imageUrlToBuffer(url: string): Promise<Buffer> {
   return Buffer.from(await res.arrayBuffer())
 }
 
-export async function generateImage(prompt: string): Promise<AiImageResult> {
+export async function generateImage(prompt: string, opts?: AiImageOptions): Promise<AiImageResult> {
   try {
-    return await generateImageViaGemini(prompt)
+    return await generateImageViaGemini(prompt, opts)
   } catch (err) {
     if ((err as { isFallback?: boolean }).isFallback) {
       console.warn('[ai-client] Usando OpenRouter para generación de imagen')
-      return generateImageViaOpenRouter(prompt)
+      return generateImageViaOpenRouter(prompt, opts)
     }
     throw err
   }
@@ -315,6 +369,7 @@ interface OpenRouterResponse {
   choices?: Array<{
     message?: {
       content?: string | ContentPart[] | null
+      images?: ContentPart[]
     }
   }>
   usage?: {

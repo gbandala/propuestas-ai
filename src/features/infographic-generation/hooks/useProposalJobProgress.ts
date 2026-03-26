@@ -1,83 +1,82 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useProposalStore } from '../store/proposal.store'
+import { getProposalInfographics } from '@/actions/infographics'
 import type { VariantStatus } from '../types'
 
-interface GenerationJobUpdate {
-  id: string
-  status: string
-  progress: number
-  error: string | null
-}
+const POLL_INTERVAL = 3000 // 3 seconds
 
-interface InfographicInsert {
-  id: string
-  slide_index: number | null
-  url: string
-}
-
-/** Maps jobId → slideIndex for realtime progress updates */
+/** Polling-based progress tracker for proposal infographic generation.
+ *  Replaces Realtime which has a race condition with fast jobs. */
 export function useProposalJobProgress(
   projectId: string,
   jobIdToSlide: Record<string, number>
 ) {
   const { setSlideState } = useProposalStore()
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const jobIds = Object.keys(jobIdToSlide)
 
   useEffect(() => {
     if (!projectId || jobIds.length === 0) return
 
-    const supabase = createClient()
+    async function poll() {
+      const result = await getProposalInfographics(projectId)
+      if ('error' in result) return
 
-    const channel = supabase
-      .channel(`proposal-jobs-${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'generation_jobs',
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          const job = payload.new as GenerationJobUpdate
-          const slideIndex = jobIdToSlide[job.id]
-          if (!slideIndex) return
-          setSlideState(slideIndex, {
-            status: job.status as VariantStatus,
-            progress: job.progress ?? 0,
-            error: job.error ?? null,
-          })
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'infographics',
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          const inf = payload.new as InfographicInsert
-          if (!inf.slide_index) return
-          setSlideState(inf.slide_index, {
-            infographicId: inf.id,
-            imageUrl: inf.url,
-            status: 'completed',
-            progress: 100,
-          })
-        }
-      )
-      .subscribe()
+      const { jobs, infographics } = result.data
 
-    channelRef.current = channel
+      // Slides with active jobs — must not be overridden by stale infographic data
+      const activeSlidess = new Set(
+        jobs
+          .filter((j) => j.status === 'pending' || j.status === 'running')
+          .map((j) => j.slide_number)
+          .filter(Boolean)
+      )
+
+      // Update job statuses (pending / running / failed)
+      for (const job of jobs) {
+        if (!job.slide_number) continue
+        setSlideState(job.slide_number, {
+          status: job.status as VariantStatus,
+          progress: job.progress ?? 0,
+          error: job.error ?? null,
+        })
+      }
+
+      // Update completed infographics — skip slides that still have an active job
+      // (the old infographic row still exists in DB while the new one is generating)
+      for (const inf of infographics) {
+        if (inf.slide_index == null) continue
+        if (activeSlidess.has(inf.slide_index)) continue
+        setSlideState(inf.slide_index, {
+          infographicId: inf.id,
+          imageUrl: inf.url,
+          status: 'completed',
+          progress: 100,
+          error: null,
+        })
+      }
+
+      // Stop polling when no jobs are active (pending or running)
+      const hasActive = jobs.some((j) => j.status === 'pending' || j.status === 'running')
+      if (!hasActive) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
+      }
+    }
+
+    // Poll immediately then every POLL_INTERVAL ms
+    poll()
+    intervalRef.current = setInterval(poll, POLL_INTERVAL)
 
     return () => {
-      supabase.removeChannel(channel)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-  }, [projectId, jobIds.join(','), setSlideState]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, jobIds.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 }
