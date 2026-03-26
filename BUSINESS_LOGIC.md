@@ -1,6 +1,6 @@
 # BUSINESS_LOGIC.md - PropuestasAI
 
-> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-24
+> Generado por SaaS Factory V4 | Fecha: 2026-03-16 | Actualizado: 2026-03-25
 
 ---
 
@@ -25,50 +25,52 @@
 >
 > Se asume que antes de usar la app, el arquitecto ya realizó un proceso de discovery con el cliente: reuniones, análisis del problema, definición de la solución técnica, estimación de presupuesto y roadmap. La app es la herramienta que toma esa información ya elaborada y produce los materiales de presentación (infografías + slides) en minutos, con la identidad visual del cliente.
 
-### Flujo principal (Happy Path)
+### Flujo principal (Happy Path) — Propuesta Unificada
+
+> **Rediseño 2026-03-25 (PRP-005):** El flujo técnico/comercial separado fue reemplazado por una propuesta unificada. El output final es un único PPTX con 7–10 slides infográficos generados con IA.
 
 #### Fase 0: Preparación
-1. Arquitecto crea el proyecto en la app (nombre del cliente, descripción)
-2. Configura la **identidad de marca** del cliente: sube o edita un archivo Markdown con colores, tipografía, tono visual y logo. Si no tiene uno, parte de una plantilla base que puede personalizar.
+1. Usuario crea el proyecto en la app (nombre del cliente, descripción)
+2. Configura la **identidad de marca** del cliente: sube o edita un archivo Markdown con colores, tipografía, tono visual, logo y fondo. Si no tiene uno, parte de una plantilla base editable. Upload máx. 5 MB por imagen.
 
-#### Fase 1: Técnica (Arquitecto)
-3. Arquitecto completa el formulario de 5 pasos con la información del discovery previo:
+#### Fase 1: Brief (captura del discovery)
+3. Usuario completa el formulario de 5 pasos con la información del discovery previo:
    - Datos del cliente y proyecto
    - Descripción del problema y sus impactos
    - KPIs actuales y objetivos (ROI esperado)
    - Tabla de funcionalidades con prioridad (Must/Should/Could)
-   - Integraciones técnicas
-   - Presupuesto por recurso
-   - Arquitectura y stack propuesto
-   - Confirmación de identidad de marca
-4. Sistema genera brief técnico en Markdown automáticamente
-5. Sistema genera **storyboard técnico** (borrador textual de las 3 infografías y los 10 slides):
-   - Para cada pieza: título, objetivo visual, elementos clave, descripción de layout, texto exacto
-   - Arquitecto revisa el storyboard, lo aprueba o solicita ajustes con comentarios
-   - El sistema regenera solo las piezas modificadas hasta obtener aprobación
-6. Con el storyboard aprobado, sistema genera 3 variantes de infografía técnica con IA
-7. Arquitecto selecciona variante preferida
-8. Sistema genera presentación técnica completa (10 slides como imágenes PNG 1376x768px con IA, descargable como PPTX)
-9. Arquitecto descarga ZIP con carpeta `/tecnica/` (brief + infografías + presentación)
+   - Integraciones técnicas, presupuesto y arquitectura
+4. Sistema genera brief técnico en Markdown automáticamente y marca `technical_completed_at`
 
-#### Fase 2: Comercial (Gestor Comercial — solo si fase técnica completada)
-10. Gestor accede al proyecto
-11. Completa propuesta comercial: descripción ejecutiva, tarifas por fase, roadmap con fechas
-12. Sistema genera **storyboard comercial** (borrador textual de 4 infografías y 10 slides comerciales)
-    - Gestor revisa, aprueba o itera con comentarios
-13. Con storyboard aprobado, genera 2 variantes ROI + 2 variantes Roadmap
-14. Gestor selecciona variantes → sistema genera presentación comercial (10 slides HTML)
-15. Gestor descarga ZIP con carpeta `/comercial/`
-16. Opcionalmente descarga ZIP completo con ambas carpetas
+#### Fase 2: Storyboard
+5. Sistema genera **storyboard de propuesta** (7 slides estándar con estructura fija):
+   - Encabezado / Problema & KPIs / Solución & Flujo / Arquitectura / Entregables & Equipo / Roadmap / Inversión & ROI
+   - Usuario revisa, aprueba o solicita ajustes con comentarios
+   - El sistema regenera el storyboard completo con los comentarios incorporados
+   - Aprobación queda registrada en `storyboards.approved_at`
+
+#### Fase 3: Infografías (generación IA)
+6. Con el storyboard aprobado, sistema genera 1 infografía por slide (7–10 imágenes, 1376×768 px, Gemini Flash Image)
+   - Cada slide tiene prompts con layout específico según su tipo (ROI, flujo, arquitectura, etc.)
+   - Generación async: fire-and-forget + polling cada 3s
+   - Cards con estado en tiempo real (pendiente / generando / listo / error)
+   - Retry individual por slide
+   - Lightbox de preview con navegación por teclado
+   - Cada infografía se guarda en `infographics.slide_index`
+
+#### Fase 4: Descarga PPTX
+7. Con al menos 1 infografía generada, usuario descarga el PPTX
+   - PPT lee `infographics` ordenados por `slide_index`
+   - Archivo: `{cliente}_propuesta.pptx`
+   - Layout WIDE (33.87 × 19.05 cm), imagen full-bleed por slide
 
 ---
 
 ## 3. Usuario Objetivo
 
 **Roles:**
-- **Arquitecto Técnico** — realiza el discovery con el cliente, captura la información en el formulario, genera y aprueba materiales técnicos
-- **Gestor Comercial** — prepara la propuesta de venta a partir del brief técnico aprobado, genera materiales comerciales
-- **Administrador del Sistema** — configura claves de APIs (OpenRouter, Gemini), gestiona usuarios y permisos
+- **Usuario** — realiza el discovery con el cliente, captura la información en el formulario, genera y aprueba el storyboard, genera infografías y descarga el PPTX
+- **Administrador del Sistema** — accede a la Bitácora de IA (uso por proyecto, rating de modelos, créditos OpenRouter), gestiona usuarios y permisos
 
 **Contexto:** Consultoras de transformación digital y agencias de soluciones de IA que generan entre 5 y 30 propuestas por mes. Actualmente usan PPT + NotebookLLM + edición manual. El dolor más grande del comercial es quitar marcas de agua de herramientas gratuitas y mantener coherencia de marca.
 
@@ -91,32 +93,20 @@
 - Roadmap con actividades, fechas y equipos
 
 **Output:**
-- `brief-tecnico.md` — documento técnico completo
-- `storyboard-tecnico.md` — descripción textual aprobada de infografías y slides técnicos
-- 10 slides técnicos PNG 1376x768 con IA (portada, problema, solución, arquitectura, etc.)
-- `presentacion-tecnica.pptx` — presentación descargable (10 imágenes en PPTX LAYOUT_WIDE)
-- 3 infografías técnicas PNG (flujo de datos / arquitectura / resumen técnico)
-- `storyboard-comercial.md` — descripción textual aprobada de infografías y slides comerciales
-- `propuesta-comercial.md` — documento comercial completo
-- 10 slides comerciales PNG 1376x768 con IA
-- `presentacion-comercial.pptx` — presentación ejecutiva descargable
-- 2 infografías comerciales ROI PNG
-- 2 infografías roadmap PNG
-- `brand-identity.md` — identidad visual del proyecto
-- `proyecto-xyz.json` — metadata completa del proyecto
-- ZIP descargable por carpeta o completo
+- `brief-tecnico.md` — documento técnico completo (generado del formulario 5 pasos)
+- `storyboard-propuesta.md` — 7 slides con título, objetivo visual, elementos y texto (aprobado por el usuario)
+- 7–10 infografías PNG 1376×768 con IA (una por slide del storyboard)
+- `{cliente}_propuesta.pptx` — PPTX descargable con slides infográficos, layout WIDE
+- `brand-identity.md` — identidad visual del proyecto (colores, tipografía, logo, fondo)
 
 **Storage (Supabase tables):**
-- `projects` — id, name, client, architect_id, commercial_id, status, created_at
-- `technical_briefs` — project_id, step_data (JSONB), generated_at
-- `brand_identity` — project_id, markdown_content, created_at, updated_at
-- `storyboards` — id, project_id, type (technical/commercial/infographic), content_md, version, approved_at, created_at
-- `infographics` — project_id, type (technical/roi/roadmap), variant, url, selected
-- `presentation_slides` — project_id, type (technical/commercial), slide_number, url, prompt_used, UNIQUE(project_id,type,slide_number)
-- `commercial_proposals` — project_id, markdown_content, phases_data (JSONB), generated_at
-- `downloads` — project_id, type (technical/commercial/complete), zip_url, downloaded_at
+- `projects` — id, name, client_name, user_id, status, description, technical_completed_at, created_at
+- `briefs` — project_id, content (Markdown del discovery), created_at, updated_at
+- `brand_identity` — project_id, markdown_content, logo_url, background_url, created_at, updated_at
+- `storyboards` — id, project_id, type (`infographic`), content_md, version, approved_at, created_at
+- `infographics` — id, project_id, slide_index (0–N), url, prompt_used, created_at (slide_index NOT NULL = propuesta)
 - `generation_jobs` — id, project_id, type, status, progress, error, slide_number, created_at
-- `ai_usage_logs` — project_id, user_id, task_type, provider, model, tokens, cost_usd, latency_ms, is_revision
+- `ai_usage_logs` — project_id, user_id, task_type, provider, model, total_tokens, cost_usd, latency_ms, is_revision, revision_notes
 
 ---
 
@@ -180,11 +170,12 @@ src/features/
    - Se guardan todas las versiones para auditoría
    - Solo la última versión aprobada se usa como contexto de generación
 
-5. **Generación de imágenes con IA (infografías y slides):**
-   - Modelo: google/gemini-3.1-flash-image-preview via Gemini API directa (fallback a OpenRouter)
-   - Infografías: 1376x768px, 3 variantes por proyecto
-   - Slides de presentación: 1376x768px, 10 slides por proyecto, prompts con layout específico por slide
-   - Guardar en Supabase Storage bajo `/projects/{id}/infographics/` o `/projects/{id}/slides/technical/`
+5. **Generación de infografías con IA:**
+   - Modelo: `google/gemini-2.0-flash-exp:free` via OpenRouter (fallback automático si falla)
+   - 1 infografía por slide del storyboard (7–10 imágenes), 1376×768 px
+   - Prompt por slide: incluye título, contenido del slide, identidad de marca (colores, logo, fondo) y layout hint específico por tipo de slide
+   - Guardar en Supabase Storage bajo `/projects/{id}/infographics/slide_{n}.png`
+   - `slide_index` en tabla `infographics` identifica el slide; permite regenerar individualmente
 
 6. **Generación async con progress (patrón fire-and-forget + polling):**
    - Server Action crea jobs en generation_jobs con slide_number → llama API Route via fetch
@@ -248,41 +239,35 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 ### Próximos Pasos
 
 1. [x] Configurar Supabase: tablas, RLS, Storage buckets
-2. [x] Implementar Auth con roles (architect / commercial / admin)
-3. [x] Feature: projects (CRUD + dashboard)
-4. [x] Feature: technical-brief (multi-step form 5 pasos + generación MD)
-5. [x] Feature: infographic-generation (async con Realtime progress)
-6. [x] Feature: brand-identity (editor Markdown + plantilla base)
-7. [x] Feature: storyboard con IA real (Gemini/OpenRouter, generacion contextual)
-8. [x] Capa de IA unificada: Gemini primario → OpenRouter fallback + ai_usage_logs
-9. [x] Bitácora /admin/ai-usage + AiModelBadge + Widget de créditos por proyecto
-10. [x] Feature: presentation-generation (10 slides PNG 1376x768 con IA, polling, lightbox, retry individual, descarga PPTX — 2026-03-24)
-11. [ ] Feature: commercial-proposal (Markdown editor + tablas dinámicas)
-12. [ ] Feature: downloads (ZIP generator)
+2. [x] Implementar Auth con roles (user / admin)
+3. [x] Feature: projects (CRUD + dashboard con progress tracker 4 etapas)
+4. [x] Feature: technical-brief (formulario 5 pasos + generación brief MD desde `briefs.content`)
+5. [x] Feature: brand-identity (editor Markdown + upload logo/fondo, límite 5 MB)
+6. [x] Feature: storyboard infográfico (7 slides, IA, revisión iterativa, aprobación)
+7. [x] Capa de IA unificada: OpenRouter (gemini-2.0-flash-exp:free) + ai_usage_logs
+8. [x] Feature: infographic-generation — propuesta unificada (N slides dinámicos, store Zustand, polling, lightbox, retry individual — PRP-005 — 2026-03-25)
+9. [x] Feature: descarga PPTX propuesta (`infographics` ordenados por `slide_index`)
+10. [x] Bitácora /admin/ai-usage: uso por proyecto (storyboards, infografías, revisiones), detalle expandible por proyecto, rating de modelos
+11. [ ] Feature: ZIP generator (brief + infografías + PPTX en un solo archivo)
+12. [ ] Feature: historial de versiones de storyboard (auditoría de revisiones)
 
 ---
 
 ## 7. Scope V1 (MVP)
 
-**Incluido en V1:**
-- Auth completo con 3 roles
-- Configuración de brand identity en Markdown (plantilla base editable + upload)
-- Formulario técnico de 8 pasos con validación
-- Storyboard técnico: generación textual + revisión iterativa + aprobación
-- Generación de 3 variantes de infografía técnica con IA (con storyboard como contexto)
-- Preview de 2 slides técnicas antes de aprobar
-- Generación de presentación técnica HTML (10 slides)
-- Acceso condicional al flujo comercial
-- Formulario comercial con Markdown editor y tablas de fases/costos
-- Storyboard comercial: generación textual + revisión + aprobación
-- Generación de 2+2 variantes de infografías comerciales (ROI + Roadmap)
-- Generación de presentación comercial HTML (10 slides)
-- Descarga ZIP por sección y completa
-- Panel admin para configurar API keys
+**Incluido en V1 (completado):**
+- Auth con roles (user / admin)
+- Identidad de marca: editor Markdown + upload logo y fondo (5 MB máx)
+- Brief técnico: formulario 5 pasos + generación automática en Markdown
+- Storyboard de propuesta: 7 slides, generación IA, revisión iterativa, aprobación
+- Generación de 7–10 infografías PNG 1376×768 con IA (una por slide)
+- Descarga de propuesta como PPTX (slides infográficos ordenados)
+- Dashboard con progress tracker (Información → Storyboard → Infografías → PPT)
+- Bitácora de IA (admin): uso por proyecto, detalle expandible, rating de modelos, créditos OpenRouter
 
 **Fuera de V1 (backlog):**
-- Exportar HTML a PDF via Puppeteer (V2)
-- Casos de éxito / templates pre-cargados por industria (V2)
-- Historial de versiones de propuestas (V2)
-- Colaboración en tiempo real entre arquitecto y comercial (V2)
+- ZIP generator (brief + infografías + PPTX en un solo archivo)
+- Historial de versiones de storyboard (auditoría de revisiones)
+- Templates de storyboard pre-cargados por industria (V2)
+- Colaboración en tiempo real (V2)
 - Firma digital de propuestas (V3)

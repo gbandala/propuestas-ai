@@ -2,14 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getUsageLogs, getModelRatings, getOpenRouterBalance } from '@/actions/ai-usage'
-
-const TASK_LABELS: Record<string, string> = {
-  storyboard_technical: 'Storyboard Técnico',
-  storyboard_commercial: 'Storyboard Comercial',
-  infographic_v1: 'Infografía V1',
-  infographic_v2: 'Infografía V2',
-  infographic_v3: 'Infografía V3',
-}
+import { ProjectSummaryTable } from './ProjectSummaryTable'
+import type { ProjectSummaryRow } from './ProjectSummaryTable'
 
 export default async function AiUsagePage() {
   const supabase = await createClient()
@@ -36,8 +30,31 @@ export default async function AiUsagePage() {
 
   // Estadísticas globales
   const totalTokens = logs.reduce((s, l) => s + (l.total_tokens ?? 0), 0)
-  const totalCost = logs.reduce((s, l) => s + (l.cost_usd ? Number(l.cost_usd) : 0), 0)
   const totalRevisions = logs.filter((l) => l.is_revision).length
+
+  // Agrupado por proyecto para el tablero de resumen
+  const projectMap = new Map<string, ProjectSummaryRow>()
+  for (const log of logs) {
+    const key = log.project_id
+    if (!projectMap.has(key)) {
+      projectMap.set(key, {
+        project_id: key,
+        project_name: log.project_name ?? log.project_id.slice(0, 8),
+        storyboard_count: 0,
+        infographic_count: 0,
+        revision_count: 0,
+        total_tokens: 0,
+        logs: [],
+      })
+    }
+    const entry = projectMap.get(key)!
+    entry.logs.push(log)
+    entry.total_tokens += log.total_tokens ?? 0
+    if (log.is_revision) entry.revision_count++
+    if (log.task_type?.startsWith('storyboard')) entry.storyboard_count++
+    if (log.task_type?.startsWith('infographic')) entry.infographic_count++
+  }
+  const projectSummaries = Array.from(projectMap.values())
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -61,9 +78,9 @@ export default async function AiUsagePage() {
           <StatCard label="Generaciones totales" value={logs.length.toString()} />
           <StatCard label="Tokens totales" value={totalTokens.toLocaleString()} />
           <StatCard
-            label="Costo OpenRouter"
-            value={totalCost > 0 ? `$${totalCost.toFixed(4)}` : 'Gratis'}
-            sub="acumulado en logs"
+            label="Proyectos con IA"
+            value={projectSummaries.length.toString()}
+            sub="proyectos activos"
           />
           <StatCard
             label="Revisiones"
@@ -122,7 +139,6 @@ export default async function AiUsagePage() {
                     <th className="px-6 py-3 text-right">% Revisiones</th>
                     <th className="px-6 py-3 text-right">Tokens prom.</th>
                     <th className="px-6 py-3 text-right">Latencia prom.</th>
-                    <th className="px-6 py-3 text-right">Costo total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -158,11 +174,6 @@ export default async function AiUsagePage() {
                       <td className="px-6 py-4 text-right text-gray-700">
                         {r.avg_latency_ms != null ? `${(r.avg_latency_ms / 1000).toFixed(1)}s` : '—'}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-700">
-                        {r.total_cost_usd != null && r.total_cost_usd > 0
-                          ? `$${r.total_cost_usd.toFixed(4)}`
-                          : 'Gratis'}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -171,80 +182,16 @@ export default async function AiUsagePage() {
           </section>
         )}
 
-        {/* Bitácora de logs */}
+        {/* Tablero por proyecto */}
         <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 px-6 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Bitácora de Créditos por Proyecto</h2>
-            <p className="mt-1 text-sm text-gray-500">Últimas 200 generaciones</p>
-          </div>
-          {logs.length === 0 ? (
-            <p className="px-6 py-8 text-center text-sm text-gray-400">
-              Sin registros aún. Los logs aparecen cuando se generan storyboards o infografías.
+            <h2 className="text-lg font-semibold text-gray-900">Uso por Proyecto</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Resumen de generaciones por proyecto activo. Haz clic en &quot;Ver detalle&quot; para
+              ver cada registro.
             </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-                  <tr>
-                    <th className="px-6 py-3 text-left">Fecha</th>
-                    <th className="px-6 py-3 text-left">Proyecto</th>
-                    <th className="px-6 py-3 text-left">Tarea</th>
-                    <th className="px-6 py-3 text-left">Modelo</th>
-                    <th className="px-6 py-3 text-right">Tokens</th>
-                    <th className="px-6 py-3 text-right">Costo</th>
-                    <th className="px-6 py-3 text-right">Latencia</th>
-                    <th className="px-6 py-3 text-center">Revisión</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 text-gray-500 whitespace-nowrap">
-                        {new Date(log.created_at).toLocaleDateString('es-MX', {
-                          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                        })}
-                      </td>
-                      <td className="px-6 py-3 font-medium text-gray-900">
-                        {log.project_name ?? log.project_id.slice(0, 8)}
-                      </td>
-                      <td className="px-6 py-3 text-gray-600">
-                        {TASK_LABELS[log.task_type] ?? log.task_type}
-                      </td>
-                      <td className="px-6 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`h-1.5 w-1.5 rounded-full ${log.provider === 'gemini' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                          <span className="text-gray-700">{log.model.replace('google/', '')}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3 text-right text-gray-700">
-                        {log.total_tokens != null ? log.total_tokens.toLocaleString() : '—'}
-                      </td>
-                      <td className="px-6 py-3 text-right text-gray-700">
-                        {log.cost_usd != null && Number(log.cost_usd) > 0
-                          ? `$${Number(log.cost_usd).toFixed(6)}`
-                          : <span className="text-green-600">Gratis</span>}
-                      </td>
-                      <td className="px-6 py-3 text-right text-gray-700">
-                        {log.latency_ms != null ? `${(log.latency_ms / 1000).toFixed(1)}s` : '—'}
-                      </td>
-                      <td className="px-6 py-3 text-center">
-                        {log.is_revision ? (
-                          <span
-                            title={log.revision_notes ?? ''}
-                            className="inline-block rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700"
-                          >
-                            Sí
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          </div>
+          <ProjectSummaryTable summaries={projectSummaries} />
         </section>
 
       </div>

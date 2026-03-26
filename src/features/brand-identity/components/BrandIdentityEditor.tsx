@@ -69,6 +69,14 @@ export function BrandIdentityEditor({ projectId, initial, onSave }: BrandIdentit
     if (!file) return
     e.target.value = ''
 
+    const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+    if (file.size > MAX_SIZE) {
+      const msg = `La imagen es muy grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo permitido: 5 MB.`
+      if (imageType === 'logo') setLogoError(msg)
+      else setBgError(msg)
+      return
+    }
+
     const formData = new FormData()
     formData.append('file', file)
 
