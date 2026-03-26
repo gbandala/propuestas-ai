@@ -32,6 +32,7 @@ export type AiTaskType =
   | 'slide_technical_9'
   | 'slide_technical_10'
 export type ProjectStatus = 'draft' | 'in_progress' | 'completed' | 'archived'
+export type ImageQuality = 'flash' | 'pro'
 export type InfographicType = 'technical' | 'roi' | 'roadmap'
 export type PresentationType = 'technical' | 'commercial'
 // Tipos activos: 'proposal_infographics'. Legado conservado para jobs históricos.
@@ -60,6 +61,7 @@ export interface Project {
   status: ProjectStatus
   technical_completed_at: string | null
   commercial_completed_at: string | null
+  image_quality: ImageQuality
   created_at: string
   updated_at: string
 }

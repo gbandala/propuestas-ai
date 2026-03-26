@@ -1,17 +1,31 @@
 /**
- * Cliente AI unificado: Gemini API (primario, free tier) → OpenRouter (fallback)
+ * Cliente AI unificado
  *
- * Modelo: google/gemini-3.1-flash-image-preview
- * - Soporta generación de texto e imágenes
- * - Prioridad: Gemini API directa (GEMINI_API_KEY) para aprovechar el free tier
- * - Fallback automático a OpenRouter cuando Gemini excede quota o no está disponible
+ * Imágenes: Gemini API directa (free tier) → OpenRouter fallback
+ *   - Flash: gemini-2.5-flash-preview-image-generation (default, rápido)
+ *   - Pro:   gemini-2.5-pro-preview-image-generation  (mayor calidad, más lento)
+ *
+ * Texto: OpenRouter directo con claude-sonnet-4-6 (mejor para output estructurado)
  */
 
 import type { AiProvider } from '@/types/database'
 
-const GEMINI_MODEL = 'gemini-3.1-flash-image-preview'
-const OPENROUTER_MODEL = 'google/gemini-3.1-flash-image-preview'
+// Modelos de imagen — Gemini API directa
+const GEMINI_IMAGE_MODEL_FLASH = 'gemini-2.5-flash-preview-image-generation'
+const GEMINI_IMAGE_MODEL_PRO = 'gemini-2.5-pro-preview-image-generation'
+
+// Modelos de imagen — OpenRouter fallback
+// Modelo probado: google/gemini-3.1-flash-image-preview (OpenRouter resuelve a -20260226)
+// Pro no existe en OpenRouter: ambos usan el mismo modelo disponible.
+const OPENROUTER_IMAGE_MODEL_FLASH = 'google/gemini-3.1-flash-image-preview'
+const OPENROUTER_IMAGE_MODEL_PRO = 'google/gemini-3.1-flash-image-preview'
+
+// Modelo de texto
+const OPENROUTER_TEXT_MODEL = 'anthropic/claude-sonnet-4-6'
+
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
+
+export type ImageQuality = 'flash' | 'pro'
 
 // Errores que activan el fallback a OpenRouter (quota, rate limit, modelo no disponible, API key inválida)
 const FALLBACK_STATUSES = new Set([400, 429, 404, 503])
@@ -41,6 +55,8 @@ export interface AiImageResult {
 export interface AiImageOptions {
   /** URL of a background/reference image to pass as multimodal input */
   backgroundImageUrl?: string | null
+  /** Calidad del modelo de imagen: 'flash' (default) o 'pro' */
+  quality?: ImageQuality
 }
 
 export interface AiTextResult {
@@ -69,6 +85,8 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw Object.assign(new Error('GEMINI_API_KEY no configurada'), { isFallback: true })
 
+  const geminiModel = opts?.quality === 'pro' ? GEMINI_IMAGE_MODEL_PRO : GEMINI_IMAGE_MODEL_FLASH
+
   // Build input parts — optionally prepend background image
   const inputParts: Array<Record<string, unknown>> = []
   if (opts?.backgroundImageUrl) {
@@ -79,7 +97,7 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
 
   const t0 = Date.now()
   const response = await fetch(
-    `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE_URL}/models/${geminiModel}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,7 +129,7 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
       buffer: Buffer.from(imagePart.inlineData.data, 'base64'),
       meta: {
         provider: 'gemini',
-        model: GEMINI_MODEL,
+        model: geminiModel,
         promptTokens: usage?.promptTokenCount ?? null,
         completionTokens: usage?.candidatesTokenCount ?? null,
         totalTokens: usage?.totalTokenCount ?? null,
@@ -126,6 +144,8 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
 async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions): Promise<AiImageResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada')
+
+  const orModel = opts?.quality === 'pro' ? OPENROUTER_IMAGE_MODEL_PRO : OPENROUTER_IMAGE_MODEL_FLASH
 
   // Build multimodal content: optionally include background image as input
   let userContent: string | Array<Record<string, unknown>> = prompt
@@ -149,7 +169,7 @@ async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions)
       'X-Title': 'PropuestasAI',
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: orModel,
       messages: [{ role: 'user', content: userContent }],
       modalities: ['image', 'text'],
     }),
@@ -167,7 +187,7 @@ async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions)
 
   const meta: AiMeta = {
     provider: 'openrouter',
-    model: response.model ?? OPENROUTER_MODEL,
+    model: response.model ?? orModel,
     promptTokens: usage?.prompt_tokens ?? null,
     completionTokens: usage?.completion_tokens ?? null,
     totalTokens: usage?.total_tokens ?? null,
@@ -228,57 +248,10 @@ export async function generateImage(prompt: string, opts?: AiImageOptions): Prom
 }
 
 // ---------------------------------------------------------------------------
-// Generación de texto
+// Generación de texto (OpenRouter + claude-sonnet-4-6)
 // ---------------------------------------------------------------------------
 
-async function generateTextViaGemini(systemPrompt: string, userPrompt: string): Promise<AiTextResult> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw Object.assign(new Error('GEMINI_API_KEY no configurada'), { isFallback: true })
-
-  const t0 = Date.now()
-  const response = await fetch(
-    `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-      }),
-    }
-  )
-
-  if (!response.ok) {
-    const body = await response.text()
-    const shouldFallback = isQuotaOrUnavailable(response.status, body)
-    console.warn(`[ai-client] Gemini texto error ${response.status}${shouldFallback ? ' — usando fallback' : ''}`)
-    throw Object.assign(
-      new Error(`Gemini API error ${response.status}: ${body}`),
-      { isFallback: shouldFallback }
-    )
-  }
-
-  const data = await response.json() as GeminiResponse
-  const latencyMs = Date.now() - t0
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-
-  if (!text) throw Object.assign(new Error('Gemini no retornó texto en la respuesta'), { isFallback: true })
-
-  const usage = data.usageMetadata
-  return {
-    text,
-    meta: {
-      provider: 'gemini',
-      model: GEMINI_MODEL,
-      promptTokens: usage?.promptTokenCount ?? null,
-      completionTokens: usage?.candidatesTokenCount ?? null,
-      totalTokens: usage?.totalTokenCount ?? null,
-      latencyMs,
-    },
-  }
-}
-
-async function generateTextViaOpenRouter(systemPrompt: string, userPrompt: string): Promise<AiTextResult> {
+export async function generateText(systemPrompt: string, userPrompt: string): Promise<AiTextResult> {
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada')
 
@@ -292,7 +265,7 @@ async function generateTextViaOpenRouter(systemPrompt: string, userPrompt: strin
       'X-Title': 'PropuestasAI',
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: OPENROUTER_TEXT_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -316,24 +289,12 @@ async function generateTextViaOpenRouter(systemPrompt: string, userPrompt: strin
     text,
     meta: {
       provider: 'openrouter',
-      model: response.model ?? OPENROUTER_MODEL,
+      model: response.model ?? OPENROUTER_TEXT_MODEL,
       promptTokens: usage?.prompt_tokens ?? null,
       completionTokens: usage?.completion_tokens ?? null,
       totalTokens: usage?.total_tokens ?? null,
       latencyMs,
     },
-  }
-}
-
-export async function generateText(systemPrompt: string, userPrompt: string): Promise<AiTextResult> {
-  try {
-    return await generateTextViaGemini(systemPrompt, userPrompt)
-  } catch (err) {
-    if ((err as { isFallback?: boolean }).isFallback) {
-      console.warn('[ai-client] Usando OpenRouter para generación de texto')
-      return generateTextViaOpenRouter(systemPrompt, userPrompt)
-    }
-    throw err
   }
 }
 

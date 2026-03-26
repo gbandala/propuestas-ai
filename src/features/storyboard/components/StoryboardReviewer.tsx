@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { updateStoryboardContent, reopenStoryboard } from '@/actions/storyboard'
 import type { StoryboardData, StoryboardType } from '../types'
 
@@ -74,6 +74,7 @@ export function StoryboardReviewer({
 }: StoryboardReviewerProps) {
   const [comments, setComments] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isReloading, setIsReloading] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [showFeedback, setShowFeedback] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,9 +86,18 @@ export function StoryboardReviewer({
     storyboard?.content_md ? parseSections(storyboard.content_md) : []
   )
 
+  // Resincronizar secciones cuando el servidor entrega un nuevo storyboard
+  useEffect(() => {
+    if (storyboard?.content_md) {
+      setSections(parseSections(storyboard.content_md))
+      setIsReloading(false)
+    }
+  }, [storyboard?.id, storyboard?.version])
+
   const isApproved = !!storyboard?.approved_at
   const hasStoryboard = !!storyboard?.content_md
   const typeLabel = 'de la Propuesta'
+  const isBusy = isGenerating || isReloading || isApproving || isReopening
 
   async function handleGenerate() {
     setIsGenerating(true)
@@ -97,7 +107,8 @@ export function StoryboardReviewer({
     try {
       await onGenerate(comments || undefined)
       setComments('')
-      // Las secciones se actualizan cuando la página hace revalidatePath y re-renderiza
+      // Mostrar estado de recarga mientras el servidor entrega los nuevos datos
+      setIsReloading(true)
     } catch {
       setError('Error al generar el storyboard. Intenta de nuevo.')
     } finally {
@@ -161,7 +172,20 @@ export function StoryboardReviewer({
   // (esto ocurre al montar de nuevo, así que el estado inicial se toma del prop)
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      {/* Overlay de procesamiento — bloquea toda la UI durante generación o recarga */}
+      {(isGenerating || isReloading) && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90 backdrop-blur-sm">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600" />
+          <p className="text-sm font-medium text-gray-700">
+            {isGenerating ? 'Generando nuevo storyboard con IA...' : 'Actualizando storyboard...'}
+          </p>
+          {isGenerating && (
+            <p className="text-xs text-gray-400">Esto puede tomar 15–30 segundos</p>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -235,7 +259,8 @@ export function StoryboardReviewer({
                 {!isApproved && editingIndex !== section.index && (
                   <button
                     onClick={() => startEdit(section)}
-                    className="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    disabled={isBusy}
+                    className="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Editar
                   </button>
@@ -286,17 +311,19 @@ export function StoryboardReviewer({
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               onClick={handleApprove}
-              disabled={isApproving || editingIndex !== null}
-              className="rounded-lg border-2 border-green-500 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-100 disabled:opacity-50 text-left"
+              disabled={isBusy || editingIndex !== null}
+              className="rounded-lg border-2 border-green-500 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed text-left"
             >
-              <div className="font-semibold">Aprobar storyboard</div>
+              <div className="font-semibold">
+                {isApproving ? 'Aprobando...' : 'Aprobar storyboard'}
+              </div>
               <div className="mt-0.5 text-xs text-green-600">Proceder a generar las imagenes con IA</div>
             </button>
 
             <button
               onClick={() => setShowFeedback(!showFeedback)}
-              disabled={editingIndex !== null}
-              className="rounded-lg border-2 border-orange-300 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-700 hover:bg-orange-100 disabled:opacity-50 text-left"
+              disabled={isBusy || editingIndex !== null}
+              className="rounded-lg border-2 border-orange-300 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-700 hover:bg-orange-100 disabled:opacity-50 disabled:cursor-not-allowed text-left"
             >
               <div className="font-semibold">Regenerar con IA</div>
               <div className="mt-0.5 text-xs text-orange-600">Describe cambios y la IA genera una nueva version</div>

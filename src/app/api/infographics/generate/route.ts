@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { generateImage } from '@/lib/ai-client'
+import type { ImageQuality } from '@/lib/ai-client'
 import { buildTechnicalPrompt, buildProposalSlidePrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
 import type { StepData } from '@/features/technical-brief/types'
@@ -67,9 +68,11 @@ export async function POST(req: NextRequest) {
 
   const { data: project } = await supabase
     .from('projects')
-    .select('user_id')
+    .select('user_id, image_quality')
     .eq('id', projectId)
     .single()
+
+  const imageQuality: ImageQuality = (project?.image_quality ?? 'flash') as ImageQuality
 
   try {
     await supabase
@@ -135,7 +138,9 @@ export async function POST(req: NextRequest) {
 
     const { buffer: imageBuffer, meta } = await generateImage(
       prompt,
-      isProposalFlow ? { backgroundImageUrl: backgroundUrl } : undefined
+      isProposalFlow
+        ? { backgroundImageUrl: backgroundUrl, quality: imageQuality }
+        : { quality: imageQuality }
     )
 
     await supabase

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import type { Project } from '@/types/database'
+import type { Project, ImageQuality } from '@/types/database'
 
 const CreateProjectSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100),
@@ -147,6 +147,27 @@ export async function archiveProject(id: string): Promise<{ success: true } | { 
   if (error) return { error: error.message }
 
   revalidatePath('/dashboard')
+  return { success: true }
+}
+
+export async function updateImageQuality(
+  id: string,
+  quality: ImageQuality
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('projects')
+    .update({ image_quality: quality, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/projects/${id}/infographics`)
   return { success: true }
 }
 

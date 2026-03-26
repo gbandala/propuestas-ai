@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getProjectById } from '@/actions/projects'
 import { getBrief } from '@/actions/brief'
-import { ProposalInfographicGenerator } from '@/features/infographic-generation/components'
+import { ProposalInfographicGenerator, ImageQualityToggle } from '@/features/infographic-generation/components'
 import { ProjectAiUsageWidget } from '@/shared/components/ProjectAiUsageWidget'
 
 interface InfographicsPageProps {
@@ -69,8 +69,13 @@ export default async function InfographicsPage({ params }: InfographicsPageProps
             </p>
           </div>
 
-          {/* Créditos + PPT compactos arriba a la derecha */}
+          {/* Créditos + toggle calidad + PPT compactos arriba a la derecha */}
           <div className="flex shrink-0 items-start gap-3">
+            <ImageQualityToggle
+              projectId={id}
+              currentQuality={project.image_quality}
+              geminiAvailable={!!process.env.GEMINI_API_KEY}
+            />
             <ProjectAiUsageWidget projectId={id} />
             {hasInfographics && (
               <Link

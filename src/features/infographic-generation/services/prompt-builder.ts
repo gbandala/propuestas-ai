@@ -43,12 +43,14 @@ export function buildProposalSlidePrompt(
   const layoutHint = SLIDE_LAYOUT_HINTS[slideNumber] ?? `Informative infographic for slide ${slideNumber}.`
 
   const lines: string[] = []
-  lines.push(`Create a professional proposal infographic slide titled: "${slideTitle}"`)
+  lines.push(`Create a professional proposal infographic. Reference: ${slideTitle}`)
   lines.push(``)
   lines.push(`LAYOUT TYPE: ${layoutHint}`)
   lines.push(``)
-  lines.push(`CONTENT (from approved storyboard):`)
+  lines.push(`CONTENT (from approved storyboard — follow exactly):`)
   lines.push(slideContent)
+  lines.push(``)
+  lines.push(`TEXT RULE: Use ONLY the text specified under "Texto en imagen:" above. Do NOT add the slide reference name ("${slideTitle}") as a visible title or heading in the image.`)
   lines.push(``)
   lines.push(`VISUAL STYLE:`)
   lines.push(`- Size: 1280x960px PNG, clean white or very light background`)
