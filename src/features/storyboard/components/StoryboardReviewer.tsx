@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { updateStoryboardContent, reopenStoryboard } from '@/actions/storyboard'
+import { updateStoryboardContent, reopenStoryboard, regenerateStoryboardSlide } from '@/actions/storyboard'
 import type { StoryboardData, StoryboardType } from '../types'
 
 interface StoryboardReviewerProps {
@@ -82,6 +82,10 @@ export function StoryboardReviewer({
   const [editContent, setEditContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
+  // Per-slide AI regeneration
+  const [aiRegeneratingIndex, setAiRegeneratingIndex] = useState<number | null>(null)
+  const [aiInstructions, setAiInstructions] = useState('')
+  const [isAiRegenerating, setIsAiRegenerating] = useState(false)
   const [sections, setSections] = useState<ParsedSection[]>(() =>
     storyboard?.content_md ? parseSections(storyboard.content_md) : []
   )
@@ -97,7 +101,7 @@ export function StoryboardReviewer({
   const isApproved = !!storyboard?.approved_at
   const hasStoryboard = !!storyboard?.content_md
   const typeLabel = 'de la Propuesta'
-  const isBusy = isGenerating || isReloading || isApproving || isReopening
+  const isBusy = isGenerating || isReloading || isApproving || isReopening || isAiRegenerating
 
   async function handleGenerate() {
     setIsGenerating(true)
@@ -166,6 +170,24 @@ export function StoryboardReviewer({
     setSections(updated)
     setEditingIndex(null)
     setIsSaving(false)
+  }
+
+  async function handleAiRegenerate(index: number) {
+    if (!storyboard?.id || !aiInstructions.trim()) return
+    setIsAiRegenerating(true)
+    setError(null)
+    const result = await regenerateStoryboardSlide(storyboard.id, index, aiInstructions.trim())
+    if ('error' in result) {
+      setError('Error al regenerar el slide: ' + result.error)
+      setIsAiRegenerating(false)
+      return
+    }
+    // Recargar storyboard desde el servidor (revalidatePath via page)
+    setAiRegeneratingIndex(null)
+    setAiInstructions('')
+    setIsAiRegenerating(false)
+    setIsReloading(true)
+    window.location.reload()
   }
 
   // Si el storyboard se regenera (revalidatePath), resincronizar secciones
@@ -256,14 +278,25 @@ export function StoryboardReviewer({
               {/* Título del slide */}
               <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-semibold text-gray-800">{section.title}</p>
-                {!isApproved && editingIndex !== section.index && (
-                  <button
-                    onClick={() => startEdit(section)}
-                    disabled={isBusy}
-                    className="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Editar
-                  </button>
+                {/* Botones de acción por slide */}
+                {!isApproved && editingIndex !== section.index && aiRegeneratingIndex !== section.index && (
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => { setAiRegeneratingIndex(section.index); setAiInstructions('') }}
+                      disabled={isBusy}
+                      className="rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Regenerar este slide con IA"
+                    >
+                      ✦ IA
+                    </button>
+                    <button
+                      onClick={() => startEdit(section)}
+                      disabled={isBusy}
+                      className="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      Editar
+                    </button>
+                  </div>
                 )}
                 {editingIndex === section.index && (
                   <div className="flex gap-2">
@@ -282,6 +315,24 @@ export function StoryboardReviewer({
                     </button>
                   </div>
                 )}
+                {aiRegeneratingIndex === section.index && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setAiRegeneratingIndex(null); setAiInstructions('') }}
+                      disabled={isAiRegenerating}
+                      className="rounded-md border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleAiRegenerate(section.index)}
+                      disabled={isAiRegenerating || !aiInstructions.trim()}
+                      className="rounded-md bg-purple-600 px-3 py-1 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {isAiRegenerating ? 'Generando...' : 'Regenerar'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Contenido */}
@@ -293,6 +344,27 @@ export function StoryboardReviewer({
                     rows={10}
                     className="w-full rounded-lg border border-gray-200 p-3 font-mono text-sm text-gray-800 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
                   />
+                ) : aiRegeneratingIndex === section.index ? (
+                  <div className="space-y-2">
+                    <pre className="whitespace-pre-wrap font-mono text-xs text-gray-400 leading-relaxed max-h-32 overflow-y-auto opacity-60">
+                      {section.content}
+                    </pre>
+                    <textarea
+                      value={aiInstructions}
+                      onChange={(e) => setAiInstructions(e.target.value)}
+                      placeholder={`Ej: Agrega las métricas de ROI: 70% reducción de tiempo, $340 por propuesta actual. Cambia el layout a columnas.`}
+                      rows={3}
+                      disabled={isAiRegenerating}
+                      autoFocus
+                      className="w-full rounded-lg border border-purple-200 bg-purple-50/30 p-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-purple-400 focus:outline-none focus:ring-1 focus:ring-purple-400 resize-none disabled:opacity-50"
+                    />
+                    {isAiRegenerating && (
+                      <div className="flex items-center gap-2 text-xs text-purple-600">
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+                        Regenerando slide con IA…
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <pre className="whitespace-pre-wrap font-mono text-xs text-gray-600 leading-relaxed max-h-48 overflow-y-auto">
                     {section.content || <span className="text-gray-400 italic">Sin contenido</span>}

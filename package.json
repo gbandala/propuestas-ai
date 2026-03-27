@@ -12,9 +12,12 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.140",
+    "@openrouter/ai-sdk-provider": "^2.3.3",
     "@openrouter/sdk": "^0.9.11",
     "@supabase/ssr": "^0.6.0",
     "@supabase/supabase-js": "^2.49.0",
+    "ai": "^6.0.138",
     "next": "^16.0.0",
     "pptxgenjs": "^4.0.1",
     "react": "^19.0.0",

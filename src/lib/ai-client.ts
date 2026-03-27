@@ -55,6 +55,8 @@ export interface AiImageResult {
 export interface AiImageOptions {
   /** URL of a background/reference image to pass as multimodal input */
   backgroundImageUrl?: string | null
+  /** Pre-fetched base64 of background image — skips the internal fetch when provided */
+  backgroundImageBase64?: { data: string; mimeType: string } | null
   /** Calidad del modelo de imagen: 'flash' (default) o 'pro' */
   quality?: ImageQuality
 }
@@ -68,15 +70,25 @@ export interface AiTextResult {
 // Generación de imágenes
 // ---------------------------------------------------------------------------
 
-async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
+export async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string } | null> {
   try {
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.warn(`[ai-client] fetchImageAsBase64: HTTP ${res.status} for ${url}`)
+      return null
+    }
     const contentType = res.headers.get('content-type') ?? 'image/jpeg'
-    const mimeType = contentType.split(';')[0].trim()
+    // Normalise: if Supabase returns application/octet-stream, infer from URL extension
+    let mimeType = contentType.split(';')[0].trim()
+    if (mimeType === 'application/octet-stream') {
+      const ext = url.split('?')[0].split('.').pop()?.toLowerCase()
+      const extMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }
+      mimeType = extMap[ext ?? ''] ?? 'image/jpeg'
+    }
     const data = Buffer.from(await res.arrayBuffer()).toString('base64')
     return { data, mimeType }
-  } catch {
+  } catch (err) {
+    console.warn(`[ai-client] fetchImageAsBase64: fetch error for ${url}:`, err)
     return null
   }
 }
@@ -87,12 +99,10 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
 
   const geminiModel = opts?.quality === 'pro' ? GEMINI_IMAGE_MODEL_PRO : GEMINI_IMAGE_MODEL_FLASH
 
-  // Build input parts — optionally prepend background image
+  // Build input parts — optionally prepend background image (use pre-fetched bytes if available)
   const inputParts: Array<Record<string, unknown>> = []
-  if (opts?.backgroundImageUrl) {
-    const bg = await fetchImageAsBase64(opts.backgroundImageUrl)
-    if (bg) inputParts.push({ inlineData: { mimeType: bg.mimeType, data: bg.data } })
-  }
+  const bgToUse = opts?.backgroundImageBase64 ?? (opts?.backgroundImageUrl ? await fetchImageAsBase64(opts.backgroundImageUrl) : null)
+  if (bgToUse) inputParts.push({ inlineData: { mimeType: bgToUse.mimeType, data: bgToUse.data } })
   inputParts.push({ text: prompt })
 
   const t0 = Date.now()
@@ -147,16 +157,14 @@ async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions)
 
   const orModel = opts?.quality === 'pro' ? OPENROUTER_IMAGE_MODEL_PRO : OPENROUTER_IMAGE_MODEL_FLASH
 
-  // Build multimodal content: optionally include background image as input
+  // Build multimodal content: optionally include background image as input (use pre-fetched bytes if available)
   let userContent: string | Array<Record<string, unknown>> = prompt
-  if (opts?.backgroundImageUrl) {
-    const bg = await fetchImageAsBase64(opts.backgroundImageUrl)
-    if (bg) {
-      userContent = [
-        { type: 'image_url', image_url: { url: `data:${bg.mimeType};base64,${bg.data}` } },
-        { type: 'text', text: prompt },
-      ]
-    }
+  const bgToUse = opts?.backgroundImageBase64 ?? (opts?.backgroundImageUrl ? await fetchImageAsBase64(opts.backgroundImageUrl) : null)
+  if (bgToUse) {
+    userContent = [
+      { type: 'image_url', image_url: { url: `data:${bgToUse.mimeType};base64,${bgToUse.data}` } },
+      { type: 'text', text: prompt },
+    ]
   }
 
   const t0 = Date.now()

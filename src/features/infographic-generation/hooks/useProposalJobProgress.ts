@@ -37,6 +37,24 @@ export function useProposalJobProgress(
       // Update job statuses (pending / running / failed)
       for (const job of jobs) {
         if (!job.slide_number) continue
+
+        // When a job fails but there is already a completed infographic for the slide,
+        // stay in 'completed' (old image) rather than showing the error state.
+        // The user sees a brief toast-less recovery instead of a confusing error flash.
+        if (job.status === 'failed') {
+          const existingInf = infographics.find((i) => i.slide_index === job.slide_number)
+          if (existingInf) {
+            setSlideState(job.slide_number, {
+              infographicId: existingInf.id,
+              imageUrl: existingInf.url,
+              status: 'completed',
+              progress: 100,
+              error: null,
+            })
+            continue
+          }
+        }
+
         setSlideState(job.slide_number, {
           status: job.status as VariantStatus,
           progress: job.progress ?? 0,

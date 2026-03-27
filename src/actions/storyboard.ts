@@ -67,11 +67,25 @@ export async function generateStoryboard(
 
   const nextVersion = (existing?.version ?? 0) + 1
 
+  // Leer storyboard actual para pasarlo como contexto cuando hay comentarios (preserva slides no mencionados)
+  let existingContent: string | undefined
+  if (comments) {
+    const { data: existingStoryboard } = await supabase
+      .from('storyboards')
+      .select('content_md')
+      .eq('project_id', projectId)
+      .eq('type', type)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    existingContent = existingStoryboard?.content_md ?? undefined
+  }
+
   // Generar contenido con IA
   let content: string
   let aiMeta: import('@/lib/ai-client').AiMeta | null = null
   try {
-    const result = await generateStoryboardWithAI(type, briefContent, brandMarkdown, comments, nextVersion)
+    const result = await generateStoryboardWithAI(type, briefContent, brandMarkdown, comments, nextVersion, existingContent)
     content = result.text
     aiMeta = result.meta
   } catch (err) {
@@ -157,6 +171,86 @@ export async function updateStoryboardContent(
   return { data }
 }
 
+/** Regenera un slide individual del storyboard con IA y guarda el resultado */
+export async function regenerateStoryboardSlide(
+  storyboardId: string,
+  slideIndex: number,
+  instructions: string
+): Promise<{ data: { id: string } } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  // Leer storyboard actual
+  const { data: storyboard } = await supabase
+    .from('storyboards')
+    .select('id, content_md, project_id, type, version')
+    .eq('id', storyboardId)
+    .single()
+
+  if (!storyboard?.content_md) return { error: 'Storyboard no encontrado' }
+
+  // Extraer el slide específico (parsear secciones ###)
+  const parts = storyboard.content_md.split(/^### /m)
+  // parts[0] = vacío, parts[1] = Encabezado, parts[2] = Slide 1, etc.
+  // slideIndex 0 → encabezado (parts[1]), slideIndex 1 → Slide 1 (parts[2])
+  const targetPartIndex = slideIndex + 1
+  if (targetPartIndex >= parts.length) return { error: `Slide ${slideIndex} no existe en el storyboard` }
+
+  const currentSlideTitle = parts[targetPartIndex].split('\n')[0].trim()
+  const currentSlideContent = parts[targetPartIndex].split('\n').slice(1).join('\n').trim()
+
+  // Leer brief y brand para contexto
+  const [briefResult, brandResult] = await Promise.all([
+    supabase.from('briefs').select('content').eq('project_id', storyboard.project_id).maybeSingle(),
+    supabase.from('brand_identity').select('markdown_content').eq('project_id', storyboard.project_id).maybeSingle(),
+  ])
+
+  const systemPrompt = `Eres un arquitecto de software senior experto en propuestas comerciales y comunicación visual.
+Tu tarea es regenerar UN ÚNICO SLIDE de un storyboard de propuesta aplicando instrucciones específicas.
+Responde SOLO con el contenido del slide (sin el encabezado ###), en el mismo formato que el slide actual.
+No agregues texto introductorio ni conclusiones.`
+
+  const userPrompt = [
+    `# SLIDE A REGENERAR: ${currentSlideTitle}`,
+    ``,
+    `## Contenido actual:`,
+    currentSlideContent,
+    ``,
+    `## Instrucciones de cambio:`,
+    instructions,
+    ``,
+    `## Contexto del proyecto (brief):`,
+    briefResult.data?.content ?? '',
+    ``,
+    brandResult.data?.markdown_content ? `## Identidad de marca:\n${brandResult.data.markdown_content}` : '',
+    ``,
+    `Genera el nuevo contenido para el slide "${currentSlideTitle}" aplicando las instrucciones. Usa el mismo formato (- **Campo:** valor).`,
+  ].filter(Boolean).join('\n')
+
+  let newSlideContent: string
+  try {
+    const result = await generateText(systemPrompt, userPrompt)
+    newSlideContent = result.text.trim()
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Error generando slide con IA' }
+  }
+
+  // Reconstruir el markdown reemplazando solo ese slide
+  parts[targetPartIndex] = `${currentSlideTitle}\n${newSlideContent}\n`
+  const newMarkdown = parts[0] + parts.slice(1).map((p: string) => `### ${p}`).join('')
+
+  const { data, error } = await supabase
+    .from('storyboards')
+    .update({ content_md: newMarkdown, approved_at: null })
+    .eq('id', storyboardId)
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  return { data }
+}
+
 export async function approveStoryboard(
   storyboardId: string
 ): Promise<{ data: { id: string } } | { error: string }> {
@@ -184,17 +278,33 @@ async function generateStoryboardWithAI(
   briefContent: string,
   brandMarkdown: string,
   comments: string | undefined,
-  version: number
+  version: number,
+  existingContent?: string
 ): Promise<import('@/lib/ai-client').AiTextResult> {
-  const systemPrompt = buildSystemPrompt(type)
-  const userPrompt = buildUserPrompt(briefContent, brandMarkdown, comments, version)
+  const systemPrompt = buildSystemPrompt(type, !!existingContent)
+  const userPrompt = buildUserPrompt(briefContent, brandMarkdown, comments, version, existingContent)
   return generateText(systemPrompt, userPrompt)
 }
 
-function buildSystemPrompt(type: StoryboardType): string {
+function buildSystemPrompt(type: StoryboardType, isRevision = false): string {
   const date = new Date().toLocaleDateString('es-MX', { dateStyle: 'long' })
 
   if (type === 'infographic') {
+    if (isRevision) {
+      return `Eres un arquitecto de software senior y comunicador visual experto en propuestas de software.
+Tu tarea es REVISAR un storyboard existente aplicando cambios específicos.
+
+Hoy es ${date}. Responde SOLO con el storyboard completo en Markdown, sin texto adicional antes ni después.
+
+INSTRUCCIÓN CRÍTICA:
+- Modifica ÚNICAMENTE los slides mencionados en "Cambios solicitados".
+- Para TODOS los demás slides: copia el contenido EXACTAMENTE como aparece en "STORYBOARD ACTUAL", sin cambiar una sola palabra, número, ni signo de puntuación.
+- Mantén EXACTAMENTE el mismo número de slides del storyboard actual. NO agregues ni elimines slides.
+- Respeta el mismo formato ### para todos los slides.
+
+Al final agrega: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
+    }
+
     return `Eres un arquitecto de software senior y comunicador visual experto en propuestas de software.
 Tu tarea es generar el STORYBOARD DE LA PROPUESTA en formato Markdown.
 
@@ -254,24 +364,45 @@ function buildUserPrompt(
   briefContent: string,
   brandMarkdown: string,
   comments: string | undefined,
-  version: number
+  version: number,
+  existingContent?: string
 ): string {
   const lines: string[] = []
 
-  lines.push(`# BRIEF DEL PROYECTO`)
-  lines.push(`Versión de storyboard: ${version}`)
-  if (comments) lines.push(`Cambios solicitados: ${comments}`)
-  lines.push('')
-  lines.push(briefContent)
-  lines.push('')
-
-  if (brandMarkdown) {
-    lines.push(`# IDENTIDAD DE MARCA`)
-    lines.push(brandMarkdown)
+  // Revision mode: include the current storyboard as the source of truth
+  if (comments && existingContent) {
+    lines.push(`# STORYBOARD ACTUAL (versión ${version - 1})`)
+    lines.push(`Copia los slides NO mencionados en los cambios EXACTAMENTE como están aquí:`)
     lines.push('')
+    lines.push(existingContent)
+    lines.push('')
+    lines.push(`---`)
+    lines.push('')
+    lines.push(`# CAMBIOS SOLICITADOS`)
+    lines.push(comments)
+    lines.push('')
+    lines.push(`# BRIEF DEL PROYECTO (para contexto)`)
+    lines.push(briefContent)
+    lines.push('')
+    if (brandMarkdown) {
+      lines.push(`# IDENTIDAD DE MARCA`)
+      lines.push(brandMarkdown)
+      lines.push('')
+    }
+    lines.push(`Genera el storyboard revisado aplicando SOLO los cambios solicitados. Número de slides: ${existingContent.split(/^### /m).length - 1} (igual que el storyboard actual).`)
+  } else {
+    lines.push(`# BRIEF DEL PROYECTO`)
+    lines.push(`Versión de storyboard: ${version}`)
+    lines.push('')
+    lines.push(briefContent)
+    lines.push('')
+    if (brandMarkdown) {
+      lines.push(`# IDENTIDAD DE MARCA`)
+      lines.push(brandMarkdown)
+      lines.push('')
+    }
+    lines.push(`Genera el STORYBOARD DE LA PROPUESTA usando todos los datos anteriores.`)
   }
-
-  lines.push(`Genera el STORYBOARD DE LA PROPUESTA usando todos los datos anteriores.`)
 
   return lines.join('\n')
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { generateImage } from '@/lib/ai-client'
+import { generateImage, fetchImageAsBase64 } from '@/lib/ai-client'
 import type { ImageQuality } from '@/lib/ai-client'
 import { buildTechnicalPrompt, buildProposalSlidePrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
     let taskType: AiTaskType
     let slideIndex: number | null = null
     let backgroundUrl: string | null = null
+    let backgroundBase64: { data: string; mimeType: string } | null = null
 
     if (isProposalFlow) {
       // --- Flujo propuesta: N slides desde storyboard ---
@@ -111,7 +112,18 @@ export async function POST(req: NextRequest) {
         slideNumber
       )
       const brandMarkdown = brandResult.data?.markdown_content ?? ''
-      backgroundUrl = brandResult.data?.background_url ?? null
+      const rawBackgroundUrl = brandResult.data?.background_url ?? null
+
+      // Pre-fetch background to verify it's accessible and avoid double-fetch later
+      if (rawBackgroundUrl) {
+        backgroundBase64 = await fetchImageAsBase64(rawBackgroundUrl)
+        if (!backgroundBase64) {
+          console.warn(`[generate] Background URL inaccessible for project ${projectId}, slide ${slideNumber} — generating without background`)
+        }
+      }
+
+      // Only reference background in prompt if the image is actually available
+      backgroundUrl = backgroundBase64 ? rawBackgroundUrl : null
 
       prompt = buildProposalSlidePrompt(slideNumber, title, content, brandMarkdown, null, backgroundUrl)
       taskType = `infographic_slide_${Math.min(slideNumber, 10) as 1}` as AiTaskType
@@ -139,7 +151,7 @@ export async function POST(req: NextRequest) {
     const { buffer: imageBuffer, meta } = await generateImage(
       prompt,
       isProposalFlow
-        ? { backgroundImageUrl: backgroundUrl, quality: imageQuality }
+        ? { backgroundImageBase64: backgroundBase64, quality: imageQuality }
         : { quality: imageQuality }
     )
 

@@ -31,7 +31,9 @@ interface ProposalSlideCardProps {
 export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: ProposalSlideCardProps) {
   const [isRetrying, setIsRetrying] = useState(false)
   const [isImageLoading, setIsImageLoading] = useState(false)
+  // Track image URL that existed before a retry started (to keep showing it during regeneration)
   const prevImageUrlRef = useRef(state.imageUrl)
+  const retryingWithImageRef = useRef<string | null>(null)
 
   const isCompleted = state.status === 'completed'
   const isFailed = state.status === 'failed'
@@ -51,12 +53,23 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
     }
   }, [state.imageUrl])
 
+  // Clear the "retrying with image" snapshot once the slide is no longer loading
+  useEffect(() => {
+    if (!isLoading && !isRetrying) {
+      retryingWithImageRef.current = null
+    }
+  }, [isLoading, isRetrying])
+
   async function handleRetryClick() {
+    // Snapshot the current image URL so we can keep showing it during regeneration
+    if (state.imageUrl) retryingWithImageRef.current = state.imageUrl
     setIsRetrying(true)
     await onRetry(slideIndex)
   }
 
   const buttonBusy = isRetrying || isImageLoading
+  // Image to show while a retry is in-flight (keeps the previous image visible)
+  const frozenImageUrl = retryingWithImageRef.current
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -85,6 +98,7 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
 
       {/* Image area */}
       <div className="relative aspect-[4/3] bg-gray-50">
+        {/* Completed — show image */}
         {isCompleted && state.imageUrl ? (
           <>
             <Image
@@ -112,6 +126,23 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
               </button>
             )}
           </>
+        ) : (isLoading || isRetrying) && frozenImageUrl ? (
+          // Regenerating — keep showing previous image with overlay spinner
+          <>
+            <Image
+              src={frozenImageUrl}
+              alt={state.slideTitle}
+              fill
+              className="object-cover opacity-60"
+              unoptimized
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50">
+              <div className="flex flex-col items-center gap-2">
+                <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                <p className="text-xs font-medium text-gray-700">Regenerando...</p>
+              </div>
+            </div>
+          </>
         ) : isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center space-y-3 px-4">
@@ -126,7 +157,7 @@ export function ProposalSlideCard({ slideIndex, state, onRetry, onZoom }: Propos
                 <span className="text-red-600 text-lg">!</span>
               </div>
               <p className="text-sm text-red-600">Error al generar</p>
-              {state.error && <p className="text-xs text-gray-400">{state.error}</p>}
+              <p className="text-xs text-gray-400">Verifica tu conexión e intenta de nuevo</p>
             </div>
           </div>
         ) : (
