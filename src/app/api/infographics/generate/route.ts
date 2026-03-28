@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import sharp from 'sharp'
 import { generateImage, fetchImageAsBase64 } from '@/lib/ai-client'
 import type { ImageQuality } from '@/lib/ai-client'
 import { buildTechnicalPrompt, buildProposalSlidePrompt } from '@/features/infographic-generation/services/prompt-builder'
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
     let slideIndex: number | null = null
     let backgroundUrl: string | null = null
     let backgroundBase64: { data: string; mimeType: string } | null = null
+    let logoUrl: string | null = null
 
     if (isProposalFlow) {
       // --- Flujo propuesta: N slides desde storyboard ---
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle(),
         supabase
           .from('brand_identity')
-          .select('markdown_content, background_url')
+          .select('markdown_content, background_url, logo_url')
           .eq('project_id', projectId)
           .maybeSingle(),
       ])
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
       )
       const brandMarkdown = brandResult.data?.markdown_content ?? ''
       const rawBackgroundUrl = brandResult.data?.background_url ?? null
+      logoUrl = brandResult.data?.logo_url ?? null
 
       // Pre-fetch background to verify it's accessible and avoid double-fetch later
       if (rawBackgroundUrl) {
@@ -125,7 +128,7 @@ export async function POST(req: NextRequest) {
       // Only reference background in prompt if the image is actually available
       backgroundUrl = backgroundBase64 ? rawBackgroundUrl : null
 
-      prompt = buildProposalSlidePrompt(slideNumber, title, content, brandMarkdown, null, backgroundUrl)
+      prompt = buildProposalSlidePrompt(slideNumber, title, content, brandMarkdown, logoUrl, backgroundUrl)
       taskType = `infographic_slide_${Math.min(slideNumber, 10) as 1}` as AiTaskType
       slideIndex = slideNumber
     } else {
@@ -148,17 +151,66 @@ export async function POST(req: NextRequest) {
       .update({ progress: 30, updated_at: new Date().toISOString() })
       .eq('id', jobId)
 
-    const { buffer: imageBuffer, meta } = await generateImage(
+    const { buffer: rawImageBuffer, meta } = await generateImage(
       prompt,
       isProposalFlow
         ? { backgroundImageBase64: backgroundBase64, quality: imageQuality }
         : { quality: imageQuality }
     )
 
+    // Composite logo top-right if available
+    let imageBuffer = rawImageBuffer
+    if (isProposalFlow && logoUrl) {
+      try {
+        const logoFetched = await fetchImageAsBase64(logoUrl)
+        if (logoFetched) {
+          const logoData = Buffer.from(logoFetched.data, 'base64')
+          const logoResized = await sharp(logoData)
+            .resize(160, 90, { fit: 'inside', withoutEnlargement: true })
+            .png()
+            .toBuffer()
+          const logoMeta = await sharp(logoResized).metadata()
+          const mainMeta = await sharp(rawImageBuffer).metadata()
+          const logoW = logoMeta.width ?? 160
+          const mainW = mainMeta.width ?? 1280
+          const left = mainW - logoW - 20
+          const top = 20
+          imageBuffer = await sharp(rawImageBuffer)
+            .composite([{ input: logoResized, top, left }])
+            .png()
+            .toBuffer()
+        }
+      } catch (err) {
+        console.warn('[generate] Logo compositing failed, uploading without logo:', err)
+      }
+    }
+
     await supabase
       .from('generation_jobs')
       .update({ progress: 70, updated_at: new Date().toISOString() })
       .eq('id', jobId)
+
+    // Borrar archivo anterior del bucket antes de subir el nuevo (evita archivos huérfanos)
+    if (isProposalFlow) {
+      const { data: existing } = await supabase
+        .from('infographics')
+        .select('url')
+        .eq('project_id', projectId)
+        .eq('slide_index', slideIndex)
+        .maybeSingle()
+      if (existing?.url) {
+        try {
+          const urlObj = new URL(existing.url)
+          // El path en storage viene después de /object/public/project-assets/
+          const match = urlObj.pathname.match(/\/object\/public\/project-assets\/(.+)/)
+          if (match?.[1]) {
+            await supabase.storage.from('project-assets').remove([decodeURIComponent(match[1])])
+          }
+        } catch {
+          // No bloqueante — si falla la limpieza se sigue con la subida
+        }
+      }
+    }
 
     // Subir imagen a Storage
     const fileKey = isProposalFlow

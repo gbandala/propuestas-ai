@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef } from 'react'
 import { BRAND_IDENTITY_TEMPLATE } from '../types'
 import type { BrandIdentityData } from '../types'
-import { uploadBrandImage, removeBrandImage } from '@/actions/brand-identity'
 
 interface BrandIdentityEditorProps {
   projectId: string
@@ -17,16 +16,6 @@ export function BrandIdentityEditor({ projectId, initial, onSave }: BrandIdentit
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Imagen state
-  const [logoUrl, setLogoUrl] = useState<string | null>(initial?.logo_url ?? null)
-  const [bgUrl, setBgUrl] = useState<string | null>(initial?.background_url ?? null)
-  const [logoUploading, startLogoTransition] = useTransition()
-  const [bgUploading, startBgTransition] = useTransition()
-  const [logoError, setLogoError] = useState<string | null>(null)
-  const [bgError, setBgError] = useState<string | null>(null)
-  const logoInputRef = useRef<HTMLInputElement>(null)
-  const bgInputRef = useRef<HTMLInputElement>(null)
 
   async function handleSave() {
     setSaving(true)
@@ -59,72 +48,6 @@ export function BrandIdentityEditor({ projectId, initial, onSave }: BrandIdentit
     reader.onload = (ev) => setMarkdown(ev.target?.result as string)
     reader.readAsText(file)
     e.target.value = ''
-  }
-
-  function handleImageUpload(
-    e: React.ChangeEvent<HTMLInputElement>,
-    imageType: 'logo' | 'background'
-  ) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-
-    const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
-    if (file.size > MAX_SIZE) {
-      const msg = `La imagen es muy grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo permitido: 5 MB.`
-      if (imageType === 'logo') setLogoError(msg)
-      else setBgError(msg)
-      return
-    }
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    if (imageType === 'logo') {
-      setLogoError(null)
-      startLogoTransition(async () => {
-        const result = await uploadBrandImage(projectId, formData, 'logo')
-        if ('error' in result) {
-          setLogoError(result.error)
-        } else {
-          setLogoUrl(result.url)
-        }
-      })
-    } else {
-      setBgError(null)
-      startBgTransition(async () => {
-        const result = await uploadBrandImage(projectId, formData, 'background')
-        if ('error' in result) {
-          setBgError(result.error)
-        } else {
-          setBgUrl(result.url)
-        }
-      })
-    }
-  }
-
-  function handleRemoveImage(imageType: 'logo' | 'background') {
-    if (imageType === 'logo') {
-      setLogoError(null)
-      startLogoTransition(async () => {
-        const result = await removeBrandImage(projectId, 'logo')
-        if ('error' in result) {
-          setLogoError(result.error)
-        } else {
-          setLogoUrl(null)
-        }
-      })
-    } else {
-      setBgError(null)
-      startBgTransition(async () => {
-        const result = await removeBrandImage(projectId, 'background')
-        if ('error' in result) {
-          setBgError(result.error)
-        } else {
-          setBgUrl(null)
-        }
-      })
-    }
   }
 
   return (
@@ -197,111 +120,6 @@ export function BrandIdentityEditor({ projectId, initial, onSave }: BrandIdentit
       <p className="text-xs text-gray-400">
         Tip: Edita directamente el Markdown o sube tu propio archivo .md. Si no tienes uno, la plantilla base es un buen punto de partida.
       </p>
-
-      {/* Sección de imágenes */}
-      <div className="border-t border-gray-100 pt-6">
-        <h3 className="mb-1 text-base font-semibold text-gray-900">Imágenes de Marca</h3>
-        <p className="mb-4 text-sm text-gray-500">
-          Opcionales. Si las subes, se incluirán en la generación de las infografías.
-        </p>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Logo */}
-          <ImageUploadCard
-            label="Logo"
-            hint="PNG, SVG, JPG — máx. 2MB"
-            accept="image/png,image/svg+xml,image/jpeg,image/webp"
-            imageUrl={logoUrl}
-            uploading={logoUploading}
-            error={logoError}
-            inputRef={logoInputRef}
-            onUpload={(e) => handleImageUpload(e, 'logo')}
-            onRemove={() => handleRemoveImage('logo')}
-          />
-
-          {/* Fondo */}
-          <ImageUploadCard
-            label="Fondo de infografías"
-            hint="PNG, JPG — máx. 5MB"
-            accept="image/png,image/jpeg,image/webp"
-            imageUrl={bgUrl}
-            uploading={bgUploading}
-            error={bgError}
-            inputRef={bgInputRef}
-            onUpload={(e) => handleImageUpload(e, 'background')}
-            onRemove={() => handleRemoveImage('background')}
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface ImageUploadCardProps {
-  label: string
-  hint: string
-  accept: string
-  imageUrl: string | null
-  uploading: boolean
-  error: string | null
-  inputRef: React.RefObject<HTMLInputElement | null>
-  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onRemove: () => void
-}
-
-function ImageUploadCard({
-  label, hint, accept, imageUrl, uploading, error, inputRef, onUpload, onRemove,
-}: ImageUploadCardProps) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-900">{label}</p>
-          <p className="text-xs text-gray-400">{hint}</p>
-        </div>
-        {imageUrl && !uploading && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="text-xs text-red-500 hover:text-red-700"
-          >
-            Eliminar
-          </button>
-        )}
-      </div>
-
-      {imageUrl ? (
-        <div className="mb-3 overflow-hidden rounded-md border border-gray-200 bg-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt={label}
-            className="max-h-24 w-full object-contain p-2"
-          />
-        </div>
-      ) : (
-        <div className="mb-3 flex h-24 items-center justify-center rounded-md border-2 border-dashed border-gray-200 bg-white">
-          <p className="text-xs text-gray-400">Sin imagen</p>
-        </div>
-      )}
-
-      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={onUpload}
-      />
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        className="w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {uploading ? 'Subiendo...' : imageUrl ? 'Cambiar imagen' : 'Subir imagen'}
-      </button>
     </div>
   )
 }

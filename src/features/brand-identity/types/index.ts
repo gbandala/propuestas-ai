@@ -4,6 +4,8 @@ export interface BrandIdentityData {
   markdown_content: string
   logo_url: string | null
   background_url: string | null
+  logo_variants: Array<{ variantIndex: number; url: string | null; status: string }>
+  background_variants: Array<{ variantIndex: number; url: string | null; status: string }>
   created_at: string
   updated_at: string
 }
