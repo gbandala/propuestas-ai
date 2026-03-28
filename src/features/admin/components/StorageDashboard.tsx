@@ -16,10 +16,11 @@ function fmtDate(iso: string | null) {
 }
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
-  draft:     { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
-  active:    { label: 'Activo',      cls: 'bg-blue-100 text-blue-700' },
-  completed: { label: 'Completado',  cls: 'bg-green-100 text-green-700' },
-  archived:  { label: 'Archivado',   cls: 'bg-amber-100 text-amber-700' },
+  draft:       { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
+  active:      { label: 'Activo',      cls: 'bg-blue-100 text-blue-700' },
+  in_progress: { label: 'En progreso', cls: 'bg-blue-100 text-blue-700' },
+  completed:   { label: 'Completado',  cls: 'bg-green-100 text-green-700' },
+  archived:    { label: 'Archivado',   cls: 'bg-amber-100 text-amber-700' },
 }
 
 const PLAN_OPTIONS = [
