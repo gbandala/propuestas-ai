@@ -13,6 +13,20 @@ const CreateProjectSchema = z.object({
 
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>
 
+export async function getAllProjectsForDashboard(): Promise<{ data: Project[] } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) return { error: error.message }
+  return { data: data ?? [] }
+}
+
 export async function getProjects(): Promise<{ data: Project[] } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -48,6 +62,50 @@ export async function getProjectsWithProgress(): Promise<{ data: ProjectWithProg
     .from('projects')
     .select('*')
     .neq('status', 'archived')
+    .order('created_at', { ascending: false })
+
+  if (projectsError) return { error: projectsError.message }
+  if (!projects || projects.length === 0) return { data: [] }
+
+  const projectIds = projects.map((p) => p.id)
+
+  const [storyboardsResult, infographicsResult] = await Promise.all([
+    supabase
+      .from('storyboards')
+      .select('project_id')
+      .in('project_id', projectIds)
+      .eq('type', 'infographic')
+      .not('approved_at', 'is', null),
+    supabase
+      .from('infographics')
+      .select('project_id')
+      .in('project_id', projectIds)
+      .not('slide_index', 'is', null),
+  ])
+
+  const approvedSet = new Set((storyboardsResult.data ?? []).map((s) => s.project_id))
+  const infographicSet = new Set((infographicsResult.data ?? []).map((i) => i.project_id))
+
+  return {
+    data: projects.map((p) => ({
+      ...p,
+      proposalProgress: {
+        infoLoaded: !!p.technical_completed_at,
+        storyboardApproved: approvedSet.has(p.id),
+        hasInfographics: infographicSet.has(p.id),
+      },
+    })),
+  }
+}
+
+export async function getProjectsWithProgressAll(): Promise<{ data: ProjectWithProgress[] } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { data: projects, error: projectsError } = await supabase
+    .from('projects')
+    .select('*')
     .order('created_at', { ascending: false })
 
   if (projectsError) return { error: projectsError.message }
@@ -132,21 +190,45 @@ export async function createProject(
   return { data }
 }
 
-export async function archiveProject(id: string): Promise<{ success: true } | { error: string }> {
+export async function archiveProject(projectId: string): Promise<{ success: true } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) return { error: 'No autenticado' }
 
-  const { error } = await supabase
+  const { data: project } = await supabase
     .from('projects')
-    .update({ status: 'archived', updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('user_id', user.id) // solo el creador puede archivar
+    .select('id, name, client_name, user_id')
+    .eq('id', projectId)
+    .single()
 
-  if (error) return { error: error.message }
+  if (!project) return { error: 'Proyecto no encontrado' }
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+  const res = await fetch(`${baseUrl}/api/projects/archive`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-internal-secret': process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal',
+    },
+    body: JSON.stringify({ projectId }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Error desconocido' }))
+    return { error: err.error ?? 'Error al archivar' }
+  }
+
+  const result = await res.json()
+
+  await supabase.from('projects').update({
+    status: 'archived',
+    archived_at: new Date().toISOString(),
+    archive_url: result.archiveUrl,
+  }).eq('id', projectId)
 
   revalidatePath('/dashboard')
+  revalidatePath(`/projects/${projectId}`)
+
   return { success: true }
 }
 

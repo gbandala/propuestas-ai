@@ -63,10 +63,6 @@ export function buildProposalSlidePrompt(
   if (backgroundUrl) {
     lines.push(`- IMPORTANT: Use the provided background image (above) as the base background of this infographic. Keep text and graphics readable on top of it.`)
   }
-  if (logoUrl) {
-    lines.push(`- Top-right corner: leave a 160x90px clean white/transparent area for the company logo (will be composited after generation)`)
-  }
-
   lines.push(``)
   lines.push(`IMPORTANT: DO NOT include code snippets, ASCII art, or large text blocks. DO include: icons, colored shapes, charts, arrows, clear short labels. Use real data and metrics from the storyboard content above.`)
 

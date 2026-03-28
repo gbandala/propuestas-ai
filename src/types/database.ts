@@ -62,6 +62,8 @@ export interface Project {
   technical_completed_at: string | null
   commercial_completed_at: string | null
   image_quality: ImageQuality
+  archive_url: string | null
+  archived_at: string | null
   created_at: string
   updated_at: string
 }

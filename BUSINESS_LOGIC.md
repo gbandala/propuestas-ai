@@ -250,8 +250,9 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 8. [x] Feature: infographic-generation — propuesta unificada (N slides dinámicos, store Zustand, polling, lightbox, retry individual — PRP-005 — 2026-03-25)
 9. [x] Feature: descarga PPTX propuesta (`infographics` ordenados por `slide_index`)
 10. [x] Bitácora /admin/ai-usage: uso por proyecto (storyboards, infografías, revisiones), detalle expandible por proyecto, rating de modelos
-11. [ ] Feature: ZIP generator (brief + infografías + PPTX en un solo archivo)
-12. [ ] Feature: historial de versiones de storyboard (auditoría de revisiones)
+11. [x] Storage lifecycle: monitor + auto-ZIP archivado + limpieza huérfanos (PRP-006 — 2026-03-28)
+12. [ ] Feature: ZIP generator (brief + infografías + PPTX en un solo archivo)
+13. [ ] Feature: historial de versiones de storyboard (auditoría de revisiones)
 
 ---
 
@@ -273,3 +274,26 @@ El skill `storyboard-draft` genera un documento Markdown estructurado con:
 - Templates de storyboard pre-cargados por industria (V2)
 - Colaboración en tiempo real (V2)
 - Firma digital de propuestas (V3)
+
+---
+
+## 8. Gestión de Storage (PRP-006)
+
+### Ciclo de vida de una propuesta
+
+```
+Activa → slides en bucket, visibles en app
+Completada (>30 días) → auto-ZIP + bucket limpiado → archivada
+Archivada → brief/storyboard visibles, slides en ZIP descargable
+```
+
+### Reglas de storage
+1. **Sin archivos huérfanos:** al regenerar un slide, el archivo anterior se borra del bucket antes de subir el nuevo
+2. **Logo compositing:** sharp pone el logo encima de la imagen generada por Gemini. El prompt NO menciona el logo
+3. **Auto-limpieza:** `autoCleanOldProjects()` archiva proyectos `completed` >30 días (máx 10/vez desde el monitor)
+4. **ZIP incluye:** `brief.md` + `storyboard-infographic.md` + `slides/slide-N.png` + `brand/identity.md`
+
+### Capacidad estimada plan Free (1 GB Supabase)
+- Por propuesta activa: ~12 MB (logo + fondo + 10 slides)
+- Plan Free soporta: ~80 propuestas activas simultáneas
+- Con auto-limpieza activada: ilimitadas propuestas en el tiempo (las completadas >30d se archivan)

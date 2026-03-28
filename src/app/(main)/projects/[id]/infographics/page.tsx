@@ -34,6 +34,39 @@ export default async function InfographicsPage({ params }: InfographicsPageProps
 
   const project = projectResult.data
 
+  // Guard: proyecto archivado
+  if (project.status === 'archived') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-sm w-full rounded-xl border border-gray-200 bg-white p-8 shadow-sm text-center">
+          <div className="text-4xl mb-4">📦</div>
+          <h2 className="text-lg font-semibold text-gray-900">Propuesta archivada</h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Las infografías están disponibles en el ZIP descargable.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            {project.archive_url && (
+              <a
+                href={project.archive_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Descargar ZIP →
+              </a>
+            )}
+            <Link
+              href={`/projects/${id}`}
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              ← Volver al proyecto
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Guard: brief no completado
   if ('error' in briefResult || !briefResult.data) {
     redirect(`/projects/${id}/brief`)

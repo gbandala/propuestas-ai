@@ -176,30 +176,71 @@ npm run lint         # ESLint
 
 ---
 
-## Estado actual (2026-03-24)
+## Escalabilidad y Gestión de Storage
 
-### Implementado — Fase Tecnica completa
+### Límites por plan de Supabase
+
+Cada propuesta genera archivos en el bucket `project-assets`:
+
+| Recurso | Tamaño estimado | ×100 propuestas |
+|---------|----------------|-----------------|
+| Logo (PNG) | ~500 KB | 50 MB |
+| Fondo (PNG) | ~1.5 MB | 150 MB |
+| 10 slides generados (~1 MB c/u) | ~10 MB | ~1,000 MB |
+| **Total por propuesta** | **~12 MB** | **~1.2 GB** |
+
+| Plan Supabase | Storage | Precio | Propuestas activas |
+|---------------|---------|--------|--------------------|
+| Free | 1 GB | $0 | ~80 propuestas |
+| Pro | 100 GB | $25/mes | ~8,000 propuestas |
+
+### Regla de higiene: sin archivos huérfanos
+
+Cada vez que se regenera un slide, el archivo anterior se **borra del bucket** antes de subir el nuevo.
+Esto garantiza que el storage nunca acumule versiones obsoletas y el plan Free se mantenga viable.
+
+### Gestión del ciclo de vida de propuestas
+
+Para mantener el storage bajo control en producción:
+
+1. **Monitor de storage** — widget en `/admin` con MB usados / límite del plan / alerta al 80%
+2. **Archivo de propuestas** — al archivar un proyecto: se genera ZIP (brief + storyboard + slides) y se borran los archivos del bucket
+3. **Limpieza automática** — propuestas archivadas con más de 90 días se marcan para limpieza (el admin aprueba o cancela)
+
+### Ruta de migración
+
+```
+Free (1 GB) → hasta ~80 propuestas activas simultáneas
+Pro ($25/mes) → hasta ~8,000 propuestas → cubre cualquier agencia mediana
+Extra GB ($0.021/GB) → escalable linealmente
+```
+
+---
+
+## Estado actual (2026-03-28)
+
+### Implementado — Flujo de propuesta unificada completo
 - [x] Auth completo con 3 roles (architect / commercial / admin)
-- [x] Projects CRUD + dashboard
-- [x] Brand Identity (editor Markdown + preview + plantilla base)
-- [x] Technical Brief — 5 pasos arquitectura-first (sin infografias embebidas)
-- [x] Storyboard de Infografias — genera solo las 3 piezas visuales, edicion por seccion, aprobar/reabrir
-- [x] Infographic Generation — 3 variantes PNG async con polling en tiempo real
-  - Lightbox fullscreen para ver detalle antes de seleccionar
-  - Regeneracion individual con comentario opcional
-  - Deselect toggle — seleccion es opcional
-- [x] Storyboard de Presentacion — genera solo los 10 slides, edicion, aprobar/reabrir
-- [x] Presentacion Tecnica — 10 slides como imagenes PNG 1376x768 con IA
-  - Polling setInterval(3s) — sin dependencia de Supabase Realtime
-  - Lightbox fullscreen con navegacion slide a slide
-  - Retry individual con comentario opcional (modal con textarea)
-  - Descarga como PPTX real (pptxgenjs, una imagen por slide)
-- [x] Capa AI unificada: Gemini primario (free) -> OpenRouter fallback (automatico)
-- [x] Bitacora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs)
-- [x] Widget Creditos IA: tokens + costo + Storyboard / Infografias / Slides
-- [x] Boton "Cerrar sesion" + email/rol en dashboard
-- [x] Descarga individual de infografias (boton ↓ en cada card, proxy /api/download-image)
+- [x] Projects CRUD + dashboard con sección de proyectos archivados
+- [x] Brand Identity (editor Markdown + preview + upload logo/fondo + compositing logo en slides)
+- [x] Brief del Proyecto — captura libre del discovery en Markdown
+- [x] Storyboard de Propuesta — 7 slides, generación IA, edición por sección, aprobación iterativa, regeneración por slide
+- [x] Infografías de la Propuesta — 7 slides PNG 1280×960 async con IA
+  - Logo composited top-right via sharp (sin recuadro blanco — prompt no menciona el logo)
+  - Polling setInterval(3s), lightbox fullscreen, regenerar individual
+  - Al regenerar: borra archivo anterior del bucket (sin archivos huérfanos)
+- [x] Descarga PPTX (infografías ordenadas por slide_index)
+- [x] Capa AI unificada: Gemini primario (free) → OpenRouter fallback automático
+- [x] Flash/Pro toggle por proyecto (image_quality en BD)
+- [x] Bitácora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs)
+- [x] Widget créditos IA: tokens + costo + Storyboard / Infografías
+- [x] Storage lifecycle completo (PRP-006):
+  - Monitor de storage en `/admin/ai-usage` con plan selector, barra progreso y top 5 proyectos
+  - Auto-limpieza: ZIP de proyectos completados >30 días + limpieza del bucket
+  - Proyectos archivados: visibles en dashboard, brief/storyboard legibles, slides en ZIP
+  - Dashboard `/admin/storage`: tabla completa de todos los proyectos con tamaño real en bucket
+  - Limpieza permanente de archivados >90 días: borra ZIP, archivos y todos los registros de BD (solo admin, con confirmación inline)
 
 ### Pendiente
-- [ ] Fase Comercial (propuesta + storyboard + infografias ROI/Roadmap + presentacion ejecutiva)
-- [ ] Downloads (ZIP tecnico / comercial / completo)
+- [ ] ZIP generator manual (brief + infografías + PPTX a demanda)
+- [ ] Historial de versiones de storyboard

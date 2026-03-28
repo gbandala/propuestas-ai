@@ -1,4 +1,5 @@
 export { ProjectCard } from './ProjectCard'
+export { ArchivedProjectCard } from './ArchivedProjectCard'
 export { ProjectList } from './ProjectList'
 export { CreateProjectModal } from './CreateProjectModal'
 export { ProjectStatusBadge } from './ProjectStatusBadge'
