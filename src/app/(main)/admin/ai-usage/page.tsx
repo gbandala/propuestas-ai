@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getUsageLogs, getModelRatings, getOpenRouterBalance } from '@/actions/ai-usage'
+import { getStorageStats } from '@/actions/admin'
 import { ProjectSummaryTable } from './ProjectSummaryTable'
 import type { ProjectSummaryRow } from './ProjectSummaryTable'
+import { StorageMonitorWidget } from '@/features/admin/components/StorageMonitorWidget'
 
 export default async function AiUsagePage() {
   const supabase = await createClient()
@@ -18,15 +20,17 @@ export default async function AiUsagePage() {
 
   if (profile?.role !== 'admin') redirect('/dashboard')
 
-  const [logsResult, ratingsResult, balanceResult] = await Promise.all([
+  const [logsResult, ratingsResult, balanceResult, storageResult] = await Promise.all([
     getUsageLogs(),
     getModelRatings(),
     getOpenRouterBalance(),
+    getStorageStats(),
   ])
 
   const logs = 'data' in logsResult ? logsResult.data : []
   const ratings = 'data' in ratingsResult ? ratingsResult.data : []
   const balance = 'data' in balanceResult ? balanceResult.data : null
+  const storageStats = 'data' in storageResult ? storageResult.data : null
 
   // Estadísticas globales
   const totalTokens = logs.reduce((s, l) => s + (l.total_tokens ?? 0), 0)
@@ -71,7 +75,16 @@ export default async function AiUsagePage() {
               Uso de modelos, créditos y rating de eficacia por proyecto
             </p>
           </div>
+          <Link
+            href="/admin/storage"
+            className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            Gestión de Storage →
+          </Link>
         </div>
+
+        {/* Storage Monitor */}
+        <StorageMonitorWidget stats={storageStats} />
 
         {/* KPIs */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
