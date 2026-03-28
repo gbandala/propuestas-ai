@@ -5,25 +5,10 @@ import { getProjectById } from '@/actions/projects'
 import { getBrandIdentity, saveBrandIdentity, initBrandIdentity } from '@/actions/brand-identity'
 import { BrandIdentityEditor } from '@/features/brand-identity/components'
 import { BrandImagesTab } from '@/features/brand-identity/components/BrandImagesTab'
-import type { BrandVariant } from '@/actions/brand-identity'
 
 interface BrandPageProps {
   params: Promise<{ id: string }>
   searchParams: Promise<{ tab?: string }>
-}
-
-function buildSuggestedLogoPrompt(companyName: string, clientName: string, brandMarkdown: string): string {
-  const colorMatches = [...brandMarkdown.matchAll(/#([0-9A-Fa-f]{6})\b/g)].map((m) => `#${m[1]}`)
-  const primary = colorMatches[0] ?? '#2563EB'
-  const secondary = colorMatches[1] ?? '#1E40AF'
-  return `Logo empresarial horizontal para "${companyName} - ${clientName}". Ícono simple a la izquierda + nombre a la derecha. Estilo minimalista moderno, colores ${primary} y ${secondary}. Fondo transparente.`
-}
-
-function buildSuggestedBgPrompt(companyName: string, brandMarkdown: string): string {
-  const colorMatches = [...brandMarkdown.matchAll(/#([0-9A-Fa-f]{6})\b/g)].map((m) => `#${m[1]}`)
-  const primary = colorMatches[0] ?? '#2563EB'
-  const secondary = colorMatches[1] ?? '#1E40AF'
-  return `Fondo corporativo abstracto para presentación de "${companyName}". Geometría suave, gradientes en ${primary} y ${secondary}. Sin texto, sin logos. Centro despejado para contenido de slides.`
 }
 
 export default async function BrandIdentityPage({ params, searchParams }: BrandPageProps) {
@@ -55,10 +40,6 @@ export default async function BrandIdentityPage({ params, searchParams }: BrandP
   if (!brandData) {
     await initBrandIdentity(id)
   }
-
-  const brandMarkdown = brandData?.markdown_content ?? ''
-  const suggestedLogoPrompt = buildSuggestedLogoPrompt(project.name, project.client_name, brandMarkdown)
-  const suggestedBgPrompt = buildSuggestedBgPrompt(project.name, brandMarkdown)
 
   async function handleSave(markdown: string) {
     'use server'
@@ -128,10 +109,6 @@ export default async function BrandIdentityPage({ params, searchParams }: BrandP
             projectId={id}
             initialLogoUrl={brandData?.logo_url ?? null}
             initialBgUrl={brandData?.background_url ?? null}
-            initialLogoVariants={(brandData?.logo_variants ?? []) as BrandVariant[]}
-            initialBgVariants={(brandData?.background_variants ?? []) as BrandVariant[]}
-            suggestedLogoPrompt={suggestedLogoPrompt}
-            suggestedBgPrompt={suggestedBgPrompt}
           />
         )}
 
