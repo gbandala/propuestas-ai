@@ -153,6 +153,26 @@ export async function selectBrandVariant(
   return { success: true }
 }
 
+export async function createSingleBrandJob(
+  projectId: string,
+  imageType: 'logo' | 'background',
+  variantIndex: 1 | 2 | 3
+): Promise<{ data: { jobId: string } } | { error: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const taskType = `brand_${imageType}` as 'infographic_v1'
+  const { data, error } = await supabase
+    .from('generation_jobs')
+    .insert({ project_id: projectId, type: taskType, status: 'pending', progress: 0, slide_number: variantIndex })
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+  return { data: { jobId: data.id } }
+}
+
 export async function getActiveBrandJobs(
   projectId: string,
   imageType: 'logo' | 'background'

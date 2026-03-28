@@ -5,7 +5,7 @@ import { useState } from 'react'
 interface BrandVariantCardProps {
   variantIndex: 1 | 2 | 3
   imageUrl: string | null
-  status: 'idle' | 'pending' | 'running' | 'completed' | 'failed'
+  status: 'idle' | 'queued' | 'pending' | 'running' | 'completed' | 'failed'
   progress: number
   error: string | null
   isSelected: boolean
@@ -20,6 +20,7 @@ export function BrandVariantCard({
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [retryModalOpen, setRetryModalOpen] = useState(false)
   const [comment, setComment] = useState('')
+  const isQueued = status === 'queued'
   const isActive = status === 'pending' || status === 'running'
   const isFailed = status === 'failed'
   const isComplete = status === 'completed' && !!imageUrl
@@ -43,6 +44,12 @@ export function BrandVariantCard({
         }`}
           style={{ background: imageType === 'logo' ? 'repeating-conic-gradient(#e5e7eb 0% 25%, #f9fafb 0% 50%) 0 0 / 12px 12px' : '#e5e7eb' }}
         >
+          {isQueued && (
+            <div className="flex flex-col items-center gap-1 text-gray-400">
+              <span className="text-2xl">⏳</span>
+              <p className="text-xs">En espera...</p>
+            </div>
+          )}
           {isActive && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent mb-2" />
@@ -66,7 +73,7 @@ export function BrandVariantCard({
               className="max-h-full max-w-full object-contain p-2"
             />
           )}
-          {!isActive && !imageUrl && !isFailed && (
+          {!isQueued && !isActive && !imageUrl && !isFailed && (
             <p className="text-xs text-gray-400">Pendiente</p>
           )}
         </div>

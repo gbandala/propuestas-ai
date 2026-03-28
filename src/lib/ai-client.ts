@@ -115,6 +115,7 @@ async function generateImageViaGemini(prompt: string, opts?: AiImageOptions): Pr
         contents: [{ parts: inputParts }],
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       }),
+      signal: AbortSignal.timeout(100_000),
     }
   )
 
@@ -181,6 +182,7 @@ async function generateImageViaOpenRouter(prompt: string, opts?: AiImageOptions)
       messages: [{ role: 'user', content: userContent }],
       modalities: ['image', 'text'],
     }),
+    signal: AbortSignal.timeout(100_000),
   })
 
   if (!res.ok) {

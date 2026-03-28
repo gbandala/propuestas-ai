@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import { BrandVariantCard } from './BrandVariantCard'
 import {
   createBrandGenerationJobs,
+  createSingleBrandJob,
   getBrandJobStatuses,
   getBrandVariants,
   getActiveBrandJobs,
@@ -17,7 +18,7 @@ import type { BrandVariant } from '@/actions/brand-identity'
 interface VariantState {
   variantIndex: 1 | 2 | 3
   jobId: string | null
-  status: 'idle' | 'pending' | 'running' | 'completed' | 'failed'
+  status: 'idle' | 'queued' | 'pending' | 'running' | 'completed' | 'failed'
   progress: number
   imageUrl: string | null
   error: string | null
@@ -51,6 +52,7 @@ export function BrandImageGenerator({
     if (saved) setPrompt(saved)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
   const [referenceFile, setReferenceFile] = useState<File | null>(null)
   const [referencePreview, setReferencePreview] = useState<string | null>(null)
   const [variants, setVariants] = useState<VariantState[]>(() => {
@@ -77,8 +79,13 @@ export function BrandImageGenerator({
   const refFileInput = useRef<HTMLInputElement>(null)
   const uploadFileInput = useRef<HTMLInputElement>(null)
   const userTokenRef = useRef<string>('')
+  // Queue for sequential generation: jobs waiting to be fired after current finishes
+  const jobQueueRef = useRef<Array<{ jobId: string; variantIndex: 1 | 2 | 3 }>>([])
+  // Stored prompt/reference for queued jobs (captured at generation start)
+  const genPromptRef = useRef(prompt)
+  const genRefBase64Ref = useRef<{ data: string; mimeType: string } | null>(null)
 
-  // Get user token + resume any active jobs from previous session (e.g. page reload during generation)
+  // Get user token + resume any active jobs from a previous session (e.g. page reload)
   useEffect(() => {
     async function init() {
       const { createClient } = await import('@/lib/supabase/client')
@@ -111,7 +118,7 @@ export function BrandImageGenerator({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Start/stop polling
+  // Start/stop polling when there are active jobs
   useEffect(() => {
     const hasActive = variants.some((v) => v.status === 'pending' || v.status === 'running')
     if (hasActive) {
@@ -128,6 +135,19 @@ export function BrandImageGenerator({
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variants])
+
+  // Auto-fire next queued job when current finishes (sequential generation)
+  useEffect(() => {
+    const hasActive = variants.some((v) => v.status === 'pending' || v.status === 'running')
+    if (!hasActive && jobQueueRef.current.length > 0) {
+      const { jobId, variantIndex } = jobQueueRef.current.shift()!
+      setVariants((prev) =>
+        prev.map((v) => v.variantIndex === variantIndex ? { ...v, jobId, status: 'pending', progress: 0 } : v)
+      )
+      fireVariantRequest(jobId, variantIndex, genPromptRef.current, genRefBase64Ref.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variants])
 
   async function poll() {
@@ -160,7 +180,6 @@ export function BrandImageGenerator({
             if (completed?.url && v.status === 'completed') {
               return { ...v, imageUrl: completed.url, status: 'completed', progress: 100 }
             }
-            // re-check from job result
             const job = result.data.find((j) => j.id === v.jobId)
             if (job?.status === 'completed' && completed?.url) {
               return { ...v, imageUrl: completed.url, status: 'completed', progress: 100 }
@@ -173,6 +192,24 @@ export function BrandImageGenerator({
         )
       }
     }
+  }
+
+  /** Fire a single variant generation request (fire-and-forget to the API route) */
+  function fireVariantRequest(
+    jobId: string,
+    variantIndex: 1 | 2 | 3,
+    jobPrompt: string,
+    referenceBase64: { data: string; mimeType: string } | null
+  ) {
+    fetch(`${window.location.origin}/api/brand/generate-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-secret': 'propuestasai-internal',
+        'x-user-token': userTokenRef.current,
+      },
+      body: JSON.stringify({ projectId, jobId, imageType, variantIndex, prompt: jobPrompt, referenceBase64 }),
+    }).catch(console.error)
   }
 
   function handlePromptChange(value: string) {
@@ -213,46 +250,40 @@ export function BrandImageGenerator({
       return
     }
 
-    // Set all variants to pending
-    const newVariants: VariantState[] = jobsResult.data.map(({ jobId, variantIndex }) => ({
+    // Store prompt and reference for the queued jobs
+    genPromptRef.current = prompt
+    genRefBase64Ref.current = referenceBase64
+
+    // V1 starts immediately (pending), V2+V3 wait in queue (queued)
+    const newVariants: VariantState[] = jobsResult.data.map(({ jobId, variantIndex }, i) => ({
       variantIndex,
       jobId,
-      status: 'pending' as const,
+      status: i === 0 ? 'pending' : 'queued',
       progress: 0,
       imageUrl: null,
       error: null,
-    }))
+    } as VariantState))
     setVariants(newVariants)
     setSelectedUrl(null)
     setGenerating(false)
     setReferenceFile(null)
     setReferencePreview(null)
 
-    // Fire 3 generation requests (fire and forget)
-    const baseUrl = window.location.origin
-    jobsResult.data.forEach(({ jobId, variantIndex }) => {
-      fetch(`${baseUrl}/api/brand/generate-image`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-internal-secret': 'propuestasai-internal',
-          'x-user-token': userTokenRef.current,
-        },
-        body: JSON.stringify({ projectId, jobId, imageType, variantIndex, prompt, referenceBase64 }),
-      }).catch(console.error)
-    })
+    // Enqueue jobs 2 and 3 for sequential firing
+    jobQueueRef.current = jobsResult.data.slice(1).map(({ jobId, variantIndex }) => ({ jobId, variantIndex }))
+
+    // Fire job 1 immediately
+    fireVariantRequest(jobsResult.data[0].jobId, jobsResult.data[0].variantIndex, prompt, referenceBase64)
   }
 
   async function handleRetry(variantIndex: 1 | 2 | 3, comment: string) {
-    const existingJob = variants.find((v) => v.variantIndex === variantIndex)
-
-    // Create a single new job
-    const jobsResult = await createBrandGenerationJobs(projectId, imageType)
-    if ('error' in jobsResult) {
-      setMessage({ type: 'error', text: jobsResult.error })
+    // Create a single job for this variant only
+    const jobResult = await createSingleBrandJob(projectId, imageType, variantIndex)
+    if ('error' in jobResult) {
+      setMessage({ type: 'error', text: jobResult.error })
       return
     }
-    const { jobId } = jobsResult.data.find((j) => j.variantIndex === variantIndex) ?? jobsResult.data[variantIndex - 1]
+    const { jobId } = jobResult.data
 
     setVariants((prev) =>
       prev.map((v) =>
@@ -262,19 +293,8 @@ export function BrandImageGenerator({
       )
     )
 
-    const adjustedPrompt = comment ? `${prompt}\n\nAJUSTE SOLICITADO: ${comment}` : prompt
-    const baseUrl = window.location.origin
-    fetch(`${baseUrl}/api/brand/generate-image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-internal-secret': 'propuestasai-internal',
-        'x-user-token': userTokenRef.current,
-      },
-      body: JSON.stringify({ projectId, jobId, imageType, variantIndex, prompt: adjustedPrompt }),
-    }).catch(console.error)
-
-    void existingJob // suppress unused warning
+    const adjustedPrompt = comment ? `${genPromptRef.current || prompt}\n\nAJUSTE SOLICITADO: ${comment}` : prompt
+    fireVariantRequest(jobId, variantIndex, adjustedPrompt, null)
   }
 
   async function handleSelect(url: string) {
@@ -286,12 +306,14 @@ export function BrandImageGenerator({
     }
     setSelectedUrl(url)
     onCurrentUrlChange(url)
+    jobQueueRef.current = []
     setVariants(([1, 2, 3] as const).map((idx) => ({ ...IDLE, variantIndex: idx })))
     localStorage.removeItem(promptStorageKey(projectId, imageType))
     setMessage({ type: 'success', text: `${imageType === 'logo' ? 'Logo' : 'Fondo'} actualizado correctamente.` })
   }
 
   async function handleDiscard() {
+    jobQueueRef.current = []
     const result = await discardBrandVariants(projectId, imageType)
     if ('error' in result) {
       setMessage({ type: 'error', text: result.error })
@@ -330,7 +352,7 @@ export function BrandImageGenerator({
   }
 
   const hasVariants = variants.some((v) => v.status !== 'idle')
-  const anyActive = variants.some((v) => v.status === 'pending' || v.status === 'running')
+  const anyActive = variants.some((v) => v.status === 'pending' || v.status === 'running' || v.status === 'queued')
   const label = imageType === 'logo' ? 'Logo' : 'Fondo de slides'
   const dimensions = imageType === 'logo' ? '350×90px · PNG transparente' : '1376×768px · 16:9'
 
