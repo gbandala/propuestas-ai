@@ -79,20 +79,13 @@ export function BrandVariantCard({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-1 p-2 bg-white">
+        <div className="flex flex-col gap-1 p-2 bg-white">
           {isComplete && (
             <>
               <button
-                onClick={() => setLightboxOpen(true)}
-                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
-                title="Ver en grande"
-              >
-                🔍
-              </button>
-              <button
                 onClick={() => onSelect(imageUrl!)}
                 disabled={isSelected}
-                className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                className={`w-full rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                   isSelected
                     ? 'bg-blue-100 text-blue-600 cursor-default'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -100,23 +93,32 @@ export function BrandVariantCard({
               >
                 {isSelected ? '✓ Elegida' : 'Elegir esta'}
               </button>
-              <a
-                href={imageUrl!}
-                download={`${imageType}-v${variantIndex}.png`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 flex items-center"
-                title="Descargar"
-              >
-                ↓
-              </a>
-              <button
-                onClick={() => setRetryModalOpen(true)}
-                className="rounded-md border border-amber-200 px-2 py-1.5 text-xs text-amber-600 hover:bg-amber-50"
-                title="Ajustar con comentario y regenerar"
-              >
-                ✏️
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setLightboxOpen(true)}
+                  className="flex-1 rounded-md border border-gray-200 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                  title="Ver en grande"
+                >
+                  🔍
+                </button>
+                <a
+                  href={imageUrl!}
+                  download={`${imageType}-v${variantIndex}.png`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 rounded-md border border-gray-200 py-1 text-xs text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+                  title="Descargar"
+                >
+                  ↓
+                </a>
+                <button
+                  onClick={() => setRetryModalOpen(true)}
+                  className="flex-1 rounded-md border border-amber-200 py-1 text-xs text-amber-600 hover:bg-amber-50"
+                  title="Ajustar con comentario y regenerar"
+                >
+                  ✏️
+                </button>
+              </div>
             </>
           )}
           {isFailed && (
