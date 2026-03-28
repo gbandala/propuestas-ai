@@ -77,9 +77,10 @@ export function BrandVariantCard({
             <>
               <button
                 onClick={() => setLightboxOpen(true)}
-                className="flex-1 rounded-md border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                title="Ver en grande"
               >
-                🔍 Ver
+                🔍
               </button>
               <button
                 onClick={() => onSelect(imageUrl!)}
@@ -92,12 +93,22 @@ export function BrandVariantCard({
               >
                 {isSelected ? '✓ Elegida' : 'Elegir esta'}
               </button>
+              <a
+                href={imageUrl!}
+                download={`${imageType}-v${variantIndex}.png`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 flex items-center"
+                title="Descargar"
+              >
+                ↓
+              </a>
               <button
                 onClick={() => setRetryModalOpen(true)}
-                className="rounded-md border border-gray-200 px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
-                title="Ajustar con comentario"
+                className="rounded-md border border-amber-200 px-2 py-1.5 text-xs text-amber-600 hover:bg-amber-50"
+                title="Ajustar con comentario y regenerar"
               >
-                ↻
+                ✏️
               </button>
             </>
           )}

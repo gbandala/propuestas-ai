@@ -6,6 +6,7 @@ import {
   createBrandGenerationJobs,
   getBrandJobStatuses,
   getBrandVariants,
+  getActiveBrandJobs,
   selectBrandVariant,
   discardBrandVariants,
   uploadBrandImage,
@@ -35,10 +36,21 @@ interface BrandImageGeneratorProps {
 
 const POLL_INTERVAL = 3000
 
+function promptStorageKey(projectId: string, imageType: string) {
+  return `brand-prompt-${projectId}-${imageType}`
+}
+
 export function BrandImageGenerator({
   projectId, imageType, currentUrl, initialVariants, suggestedPrompt, onCurrentUrlChange,
 }: BrandImageGeneratorProps) {
   const [prompt, setPrompt] = useState(suggestedPrompt)
+
+  // Restore saved prompt from localStorage on mount (only in browser)
+  useEffect(() => {
+    const saved = localStorage.getItem(promptStorageKey(projectId, imageType))
+    if (saved) setPrompt(saved)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [referenceFile, setReferenceFile] = useState<File | null>(null)
   const [referencePreview, setReferencePreview] = useState<string | null>(null)
   const [variants, setVariants] = useState<VariantState[]>(() => {
@@ -66,15 +78,37 @@ export function BrandImageGenerator({
   const uploadFileInput = useRef<HTMLInputElement>(null)
   const userTokenRef = useRef<string>('')
 
-  // Get user token for API calls
+  // Get user token + resume any active jobs from previous session (e.g. page reload during generation)
   useEffect(() => {
-    async function getToken() {
+    async function init() {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
       userTokenRef.current = session?.access_token ?? ''
+
+      // Check DB for pending/running jobs that survived the reload
+      const activeResult = await getActiveBrandJobs(projectId, imageType)
+      if ('data' in activeResult && activeResult.data.length > 0) {
+        setVariants((prev) =>
+          prev.map((v) => {
+            const activeJob = activeResult.data.find((j) => j.variantIndex === v.variantIndex)
+            if (activeJob) {
+              return {
+                ...v,
+                jobId: activeJob.id,
+                status: activeJob.status as VariantState['status'],
+                progress: activeJob.progress,
+                imageUrl: null,
+                error: null,
+              }
+            }
+            return v
+          })
+        )
+      }
     }
-    getToken()
+    init()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Start/stop polling
@@ -139,6 +173,11 @@ export function BrandImageGenerator({
         )
       }
     }
+  }
+
+  function handlePromptChange(value: string) {
+    setPrompt(value)
+    localStorage.setItem(promptStorageKey(projectId, imageType), value)
   }
 
   function handleReferenceChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -248,6 +287,7 @@ export function BrandImageGenerator({
     setSelectedUrl(url)
     onCurrentUrlChange(url)
     setVariants(([1, 2, 3] as const).map((idx) => ({ ...IDLE, variantIndex: idx })))
+    localStorage.removeItem(promptStorageKey(projectId, imageType))
     setMessage({ type: 'success', text: `${imageType === 'logo' ? 'Logo' : 'Fondo'} actualizado correctamente.` })
   }
 
@@ -329,7 +369,7 @@ export function BrandImageGenerator({
           </label>
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => handlePromptChange(e.target.value)}
             rows={3}
             className="w-full rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-800 resize-none focus:outline-none focus:ring-1 focus:ring-blue-400"
             placeholder={imageType === 'logo' ? 'Logo minimalista, símbolo geométrico simple...' : 'Fondo corporativo abstracto, tonos azules...'}
