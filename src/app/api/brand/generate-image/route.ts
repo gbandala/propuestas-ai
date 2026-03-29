@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { generateImage } from '@/lib/ai-client'
-import type { ImageQuality } from '@/lib/ai-client'
+import type { ImageQuality } from '@/types/database'
 import { buildLogoPrompt, buildBackgroundPrompt } from '@/features/brand-identity/services/brand-prompt-builder'
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'

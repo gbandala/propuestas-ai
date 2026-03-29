@@ -107,7 +107,6 @@ export default async function InfographicsPage({ params }: InfographicsPageProps
             <ImageQualityToggle
               projectId={id}
               currentQuality={project.image_quality}
-              geminiAvailable={!!process.env.GEMINI_API_KEY}
             />
             <ProjectAiUsageWidget projectId={id} />
             {hasInfographics && (

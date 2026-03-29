@@ -7,11 +7,16 @@ import type { ImageQuality } from '@/types/database'
 interface ImageQualityToggleProps {
   projectId: string
   currentQuality: ImageQuality
-  geminiAvailable: boolean
   disabled?: boolean
 }
 
-export function ImageQualityToggle({ projectId, currentQuality, geminiAvailable, disabled }: ImageQualityToggleProps) {
+const QUALITY_LABELS: Record<ImageQuality, string> = {
+  flash: 'Gemini Flash · rápido',
+  pro:   'Gemini Pro · alta calidad',
+  flux:  'Flux Pro · ultra detalle',
+}
+
+export function ImageQualityToggle({ projectId, currentQuality, disabled }: ImageQualityToggleProps) {
   const [quality, setQuality] = useState<ImageQuality>(currentQuality)
   const [isPending, startTransition] = useTransition()
 
@@ -24,7 +29,6 @@ export function ImageQualityToggle({ projectId, currentQuality, geminiAvailable,
   }
 
   const isDisabled = disabled || isPending
-  const proUnavailable = quality === 'pro' && !geminiAvailable
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -51,17 +55,19 @@ export function ImageQualityToggle({ projectId, currentQuality, geminiAvailable,
         >
           ✦ Pro
         </button>
+        <button
+          onClick={() => handleToggle('flux')}
+          disabled={isDisabled}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+            quality === 'flux'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          } disabled:cursor-not-allowed disabled:opacity-50`}
+        >
+          ✺ Flux
+        </button>
       </div>
-
-      {proUnavailable ? (
-        <p className="max-w-[220px] text-right text-xs text-amber-600">
-          Pro requiere GEMINI_API_KEY. Usando Flash vía OpenRouter.
-        </p>
-      ) : (
-        <p className="text-xs text-gray-400">
-          {quality === 'flash' ? 'Rápido · gemini-2.5-flash' : 'Alta calidad · gemini-2.5-pro'}
-        </p>
-      )}
+      <p className="text-xs text-gray-400">{QUALITY_LABELS[quality]}</p>
     </div>
   )
 }

@@ -67,6 +67,58 @@ Cada entrada tiene: **instrucción** + **por qué** + **cuándo aplicarla**.
 
 ---
 
+### Gemini API directa no incluye imagen en free tier — usar solo OpenRouter
+
+**Instrucción:** No usar la Gemini API directa (`generativelanguage.googleapis.com`) para generación de imágenes. Usar exclusivamente OpenRouter con `OPENROUTER_API_KEY`.
+
+**Por qué:** El free tier de Gemini tiene `limit: 0` para imagen generation (`generate_content_free_tier_requests`). Toda llamada devuelve 429 RESOURCE_EXHAUSTED. Para usar Gemini directo se necesita billing habilitado en Google Cloud Console — no basta con tener `GEMINI_API_KEY`.
+
+**Modelos activos en OpenRouter (2026-03-29):**
+- Flash: `google/gemini-2.5-flash-image`
+- Pro: `google/gemini-3.1-flash-image-preview` (probado, funciona)
+- Flux: `black-forest-labs/flux.2-pro`
+- `google/gemini-3.1-pro-image-preview` **no existe** en OpenRouter
+
+**Cuándo aplica:** Cualquier cambio de proveedor o modelo de imagen. Verificar siempre en `openrouter.ai/models` antes de hardcodear un nombre de modelo.
+
+---
+
+### Modelos de IA declarados en .env.local
+
+**Instrucción:** Los nombres de modelos de imagen y texto se configuran en `.env.local` como variables de entorno. No hardcodear en el código.
+
+**Variables:**
+```
+IMAGE_MODEL_FLASH=google/gemini-2.5-flash-image
+IMAGE_MODEL_PRO=google/gemini-3.1-flash-image-preview
+IMAGE_MODEL_FLUX=black-forest-labs/flux.2-pro
+TEXT_MODEL=anthropic/claude-sonnet-4-6
+```
+
+**Por qué:** Los modelos en OpenRouter cambian frecuentemente (versiones, disponibilidad). Con variables de entorno se puede actualizar el modelo sin tocar código ni hacer deploy.
+
+**Referencia:** `src/lib/ai-client.ts` — `resolveImageModel()` lee `process.env.IMAGE_MODEL_*`.
+
+---
+
+### El logo en slides viene del compositing programático, no del fondo
+
+**Instrucción:** Para que el logo aparezca confiablemente en los slides generados, subir el logo como imagen separada en la tab "Imágenes" de identidad de marca. No depender de que el logo esté baked en la imagen de fondo.
+
+**Por qué:** Cuando `logoUrl` está configurado, el código compone el logo con `sharp` después de la generación AI (bottom-right exacto, siempre). Si no hay logo por separado, el AI intenta reproducir visualmente el logo que ve en el fondo — lo cual funciona cuando el fondo es 16:9 y el AI imita el ratio, pero falla cuando el fondo es diferente o el AI no reproduce bien.
+
+**Referencia:** `src/app/api/infographics/generate/route.ts` — bloque `if (isProposalFlow && logoUrl)`.
+
+---
+
+### Storyboards usan texto (claude-sonnet), slides usan imagen (gemini/flux)
+
+**Instrucción:** `generateText()` se usa para storyboards, `generateImage()` para slides e infografías. Los logs históricos de `storyboard_technical` con modelo de imagen son artefactos del pasado (cuando todo pasaba por el mismo endpoint).
+
+**Por qué:** En logs de `ai_usage_logs` puede aparecer `storyboard_technical` con `model = gemini-3.1-flash-image-preview`. Esto es histórico — en la versión actual, `src/actions/storyboard.ts` llama exclusivamente a `generateText()` → modelo de texto (claude-sonnet).
+
+---
+
 ## Polling y Estado Async
 
 ### `intervalRef.current = null` es obligatorio en cleanup de useEffect

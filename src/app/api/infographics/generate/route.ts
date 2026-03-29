@@ -4,7 +4,7 @@ import sharp from 'sharp'
 import { generateImage, fetchImageAsBase64 } from '@/lib/ai-client'
 
 import { removeGrayBackground } from '@/lib/image-utils'
-import type { ImageQuality } from '@/lib/ai-client'
+import type { ImageQuality } from '@/types/database'
 import { buildTechnicalPrompt, buildProposalSlidePrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
 import type { StepData } from '@/features/technical-brief/types'

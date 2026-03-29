@@ -32,7 +32,7 @@ export type AiTaskType =
   | 'slide_technical_9'
   | 'slide_technical_10'
 export type ProjectStatus = 'draft' | 'in_progress' | 'completed' | 'archived'
-export type ImageQuality = 'flash' | 'pro'
+export type ImageQuality = 'flash' | 'pro' | 'flux'
 export type InfographicType = 'technical' | 'roi' | 'roadmap'
 export type PresentationType = 'technical' | 'commercial'
 // Tipos activos: 'proposal_infographics'. Legado conservado para jobs históricos.
