@@ -305,12 +305,31 @@ export async function uploadBrandImage(
     return { error: `El archivo supera el límite de ${maxBytes / 1024 / 1024}MB` }
   }
 
-  const filename = `projects/${projectId}/brand/${imageType}.${ext}`
+  // Timestamp en filename → URL único en cada upload, evita caché del browser
+  const filename = `projects/${projectId}/brand/${imageType}-${Date.now()}.${ext}`
   const buffer = await file.arrayBuffer()
+
+  // Borrar archivo anterior del bucket antes de subir el nuevo
+  const urlField = imageType === 'logo' ? 'logo_url' : 'background_url'
+  const { data: currentBrand } = await supabase
+    .from('brand_identity')
+    .select(urlField)
+    .eq('project_id', projectId)
+    .maybeSingle()
+  const previousUrl = (currentBrand as Record<string, string | null> | null)?.[urlField] ?? null
+  if (previousUrl) {
+    try {
+      const urlObj = new URL(previousUrl)
+      const match = urlObj.pathname.match(/\/object\/public\/project-assets\/(.+)/)
+      if (match?.[1]) {
+        await supabase.storage.from('project-assets').remove([decodeURIComponent(match[1])])
+      }
+    } catch { /* non-blocking */ }
+  }
 
   const { error: uploadError } = await supabase.storage
     .from('project-assets')
-    .upload(filename, buffer, { contentType: file.type, upsert: true })
+    .upload(filename, buffer, { contentType: file.type })
 
   if (uploadError) return { error: uploadError.message }
 

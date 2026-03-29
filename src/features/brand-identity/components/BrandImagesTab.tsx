@@ -47,8 +47,7 @@ function ImageUploader({
     if ('error' in result) {
       setError(result.error)
     } else {
-      // Cache-buster: mismo path en Supabase, el browser cachea la URL anterior
-      setUrl(`${result.url}?t=${Date.now()}`)
+      setUrl(result.url)
     }
   }
 
