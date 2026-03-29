@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
           const logoData = Buffer.from(logoFetched.data, 'base64')
           const logoResized = await sharp(logoData)
             .resize(160, 90, { fit: 'inside', withoutEnlargement: true })
+            .ensureAlpha()  // Preserva canal alpha (logos transparentes Y opacos)
             .png()
             .toBuffer()
           const logoMeta = await sharp(logoResized).metadata()
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
           const left = mainW - logoW - 20
           const top = 20
           imageBuffer = await sharp(rawImageBuffer)
-            .composite([{ input: logoResized, top, left }])
+            .composite([{ input: logoResized, top, left, blend: 'over' }])
             .png()
             .toBuffer()
         }
