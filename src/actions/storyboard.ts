@@ -345,6 +345,7 @@ REGLAS:
 - El Slide 1 (ROI) debe incluir métricas concretas: tiempo ahorrado, costo, automatización.
 - El Slide 4 (Arquitectura) debe nombrar tecnologías específicas si las hay.
 - El Slide 7 (Inversión) debe incluir los montos y momentos del brief.
+- NUNCA uses corchetes [] alrededor de nombres de clientes, empresas o cualquier dato. Si el nombre del cliente está en el brief, escríbelo directamente. Si no está disponible, usa texto descriptivo sin corchetes.
 Al final agrega: "*Para aprobar este storyboard o solicitar cambios, usa los botones en la interfaz.*"`
   }
 
