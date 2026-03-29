@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import sharp from 'sharp'
 import { generateImage, fetchImageAsBase64 } from '@/lib/ai-client'
+
+/**
+ * Elimina el fondo gris/tablero-ajedrez de logos exportados por generadores AI.
+ * Esos logos tienen hasAlpha=true pero todos los pixels son opacos — el tablero
+ * está baked como RGB. Detecta pixels de baja saturación (grises neutros) con
+ * valor medio y los pone en alpha=0.
+ * Funciona también con PNGs realmente transparentes (ya tienen alpha=0, no se tocan).
+ */
+async function removeGrayBackground(imageBuffer: Buffer): Promise<Buffer> {
+  const { data, info } = await sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2]
+    const saturation = Math.max(r, g, b) - Math.min(r, g, b)
+    const value = (r + g + b) / 3
+    // Neutral gray (checkerboard): low saturation, mid-range value (not black/white)
+    if (saturation < 20 && value > 100 && value < 230) {
+      data[i + 3] = 0
+    }
+  }
+  return sharp(data as Buffer, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer()
+}
 import type { ImageQuality } from '@/lib/ai-client'
 import { buildTechnicalPrompt, buildProposalSlidePrompt } from '@/features/infographic-generation/services/prompt-builder'
 import { DEFAULT_COLORS } from '@/shared/constants/brand'
@@ -165,9 +186,10 @@ export async function POST(req: NextRequest) {
         const logoFetched = await fetchImageAsBase64(logoUrl)
         if (logoFetched) {
           const logoData = Buffer.from(logoFetched.data, 'base64')
-          const logoResized = await sharp(logoData)
+          // Quitar fondo gris (tablero AI) y preservar alpha real en un paso
+          const logoClean = await removeGrayBackground(logoData)
+          const logoResized = await sharp(logoClean)
             .resize(160, 90, { fit: 'inside', withoutEnlargement: true })
-            .ensureAlpha()  // Preserva canal alpha (logos transparentes Y opacos)
             .png()
             .toBuffer()
           const logoMeta = await sharp(logoResized).metadata()
