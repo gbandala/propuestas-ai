@@ -160,14 +160,13 @@ export async function POST(req: NextRequest) {
         : { quality: imageQuality }
     )
 
-    // Composite logo top-right if available
+    // Composite logo bottom-right — evita colisión con títulos que suelen estar arriba
     let imageBuffer = rawImageBuffer
     if (isProposalFlow && logoUrl) {
       try {
         const logoFetched = await fetchImageAsBase64(logoUrl)
         if (logoFetched) {
           const logoData = Buffer.from(logoFetched.data, 'base64')
-          // Quitar fondo gris (tablero AI) y preservar alpha real en un paso
           const logoClean = await removeGrayBackground(logoData)
           const logoResized = await sharp(logoClean)
             .resize(160, 90, { fit: 'inside', withoutEnlargement: true })
@@ -176,9 +175,11 @@ export async function POST(req: NextRequest) {
           const logoMeta = await sharp(logoResized).metadata()
           const mainMeta = await sharp(rawImageBuffer).metadata()
           const logoW = logoMeta.width ?? 160
+          const logoH = logoMeta.height ?? 90
           const mainW = mainMeta.width ?? 1280
-          const left = mainW - logoW - 20
-          const top = 20
+          const mainH = mainMeta.height ?? 960
+          const left = mainW - logoW - 24
+          const top = mainH - logoH - 24
           imageBuffer = await sharp(rawImageBuffer)
             .composite([{ input: logoResized, top, left, blend: 'over' }])
             .png()

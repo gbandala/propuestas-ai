@@ -59,9 +59,6 @@ export function buildProposalSlidePrompt(
   lines.push(`- Accent color: ${colors.accent}`)
   lines.push(`- Font: modern sans-serif, no decorative fonts`)
   lines.push(`- Style: corporate professional, clean, no watermarks, no blurry text`)
-  if (logoUrl) {
-    lines.push(`- LOGO ZONE: Keep the top-right corner (approx 220x110px from the right edge) completely empty — no text, no titles, no visual elements there. A logo will be composited there after generation.`)
-  }
 
   if (backgroundUrl) {
     lines.push(`- IMPORTANT: Use the provided background image (above) as the base background of this infographic. Keep text and graphics readable on top of it.`)
