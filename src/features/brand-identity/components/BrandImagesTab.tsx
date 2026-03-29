@@ -30,6 +30,7 @@ function ImageUploader({
   const [uploading, setUploading] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [transparentBg, setTransparentBg] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -41,7 +42,7 @@ function ImageUploader({
     setError(null)
     const formData = new FormData()
     formData.append('file', file)
-    const result = await uploadBrandImage(projectId, formData, imageType)
+    const result = await uploadBrandImage(projectId, formData, imageType, imageType === 'logo' ? transparentBg : undefined)
     setUploading(false)
 
     if ('error' in result) {
@@ -96,6 +97,22 @@ function ImageUploader({
       {/* Error */}
       {error && (
         <p className="text-xs text-red-600 bg-red-50 rounded-md px-3 py-2">{error}</p>
+      )}
+
+      {/* Transparent background option (logo only) */}
+      {imageType === 'logo' && (
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={transparentBg}
+            onChange={(e) => setTransparentBg(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-xs text-gray-600 leading-snug">
+            <span className="font-medium">Fondo transparente</span>
+            <span className="text-gray-400"> — elimina fondo gris o tablero al subir</span>
+          </span>
+        </label>
       )}
 
       {/* Actions */}

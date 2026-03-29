@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { BRAND_IDENTITY_TEMPLATE } from '@/features/brand-identity/types'
+import { removeGrayBackground } from '@/lib/image-utils'
 
 export interface BrandVariant {
   variantIndex: 1 | 2 | 3
@@ -285,7 +286,8 @@ export async function initBrandIdentity(
 export async function uploadBrandImage(
   projectId: string,
   formData: FormData,
-  imageType: 'logo' | 'background'
+  imageType: 'logo' | 'background',
+  processTransparency?: boolean
 ): Promise<{ url: string } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -306,8 +308,20 @@ export async function uploadBrandImage(
   }
 
   // Timestamp en filename → URL único en cada upload, evita caché del browser
-  const filename = `projects/${projectId}/brand/${imageType}-${Date.now()}.${ext}`
-  const buffer = await file.arrayBuffer()
+  // Si se aplica corrección de transparencia, siempre guardamos como PNG
+  const outputExt = (processTransparency && ext !== 'svg') ? 'png' : ext
+  const filename = `projects/${projectId}/brand/${imageType}-${Date.now()}.${outputExt}`
+  const rawBuffer = await file.arrayBuffer()
+  // Aplicar corrección de fondo gris/checkerboard si el usuario lo indicó
+  let buffer: ArrayBuffer | Buffer = rawBuffer
+  if (processTransparency && ext !== 'svg') {
+    try {
+      buffer = await removeGrayBackground(Buffer.from(rawBuffer))
+    } catch (err) {
+      console.warn('[uploadBrandImage] removeGrayBackground failed, uploading original:', err)
+      buffer = rawBuffer
+    }
+  }
 
   // Borrar archivo anterior del bucket antes de subir el nuevo
   const urlField = imageType === 'logo' ? 'logo_url' : 'background_url'
@@ -327,9 +341,10 @@ export async function uploadBrandImage(
     } catch { /* non-blocking */ }
   }
 
+  const contentType = (processTransparency && ext !== 'svg') ? 'image/png' : file.type
   const { error: uploadError } = await supabase.storage
     .from('project-assets')
-    .upload(filename, buffer, { contentType: file.type })
+    .upload(filename, buffer, { contentType })
 
   if (uploadError) return { error: uploadError.message }
 
