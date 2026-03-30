@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProjectById } from '@/actions/projects'
 import { getBrief } from '@/actions/brief'
 import { ProposalInfographicGenerator, ImageQualityToggle } from '@/features/infographic-generation/components'
+import { DownloadPptButton } from '@/features/infographic-generation/components/DownloadPptButton'
 import { ProjectAiUsageWidget } from '@/shared/components/ProjectAiUsageWidget'
 
 interface InfographicsPageProps {
@@ -110,12 +111,7 @@ export default async function InfographicsPage({ params }: InfographicsPageProps
             />
             <ProjectAiUsageWidget projectId={id} />
             {hasInfographics && (
-              <Link
-                href={`/projects/${id}/presentation/technical`}
-                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 whitespace-nowrap"
-              >
-                Descargar PPT &rarr;
-              </Link>
+              <DownloadPptButton projectId={id} />
             )}
           </div>
         </div>

@@ -10,6 +10,7 @@ import type { AiUsageLog } from '@/types/database'
 
 export interface UsageLogRow extends AiUsageLog {
   project_name?: string
+  project_user_id?: string
 }
 
 export async function getUsageLogs(projectId?: string): Promise<
@@ -27,7 +28,7 @@ export async function getUsageLogs(projectId?: string): Promise<
 
   let query = supabase
     .from('ai_usage_logs')
-    .select('*, projects(name)')
+    .select('*, projects(name, user_id)')
     .order('created_at', { ascending: false })
     .limit(200)
 
@@ -43,7 +44,8 @@ export async function getUsageLogs(projectId?: string): Promise<
 
   const rows = (data ?? []).map((row) => ({
     ...row,
-    project_name: (row.projects as { name: string } | null)?.name,
+    project_name: (row.projects as { name: string; user_id: string } | null)?.name,
+    project_user_id: (row.projects as { name: string; user_id: string } | null)?.user_id,
   }))
 
   return { data: rows as UsageLogRow[] }

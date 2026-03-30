@@ -22,6 +22,8 @@ function taskLabel(taskType: string): string {
 export interface ProjectSummaryRow {
   project_id: string
   project_name: string
+  user_id: string | null
+  user_email: string | null
   storyboard_count: number
   infographic_count: number
   revision_count: number
@@ -61,7 +63,16 @@ export function ProjectSummaryTable({ summaries }: Props) {
           {summaries.map((row) => (
             <React.Fragment key={row.project_id}>
               <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium text-gray-900">{row.project_name}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{row.project_name}</span>
+                    {row.user_email && (
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                        {row.user_email.split('@')[0]}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 text-right text-gray-700">{row.storyboard_count}</td>
                 <td className="px-6 py-4 text-right text-gray-700">{row.infographic_count}</td>
                 <td className="px-6 py-4 text-right">

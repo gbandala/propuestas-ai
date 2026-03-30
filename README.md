@@ -148,11 +148,38 @@ npm run dev
 # Disponible en http://localhost:3000
 ```
 
-Tablas Supabase requeridas: `profiles`, `projects`, `technical_briefs`, `brand_identity`,
-`briefs`, `storyboards`, `infographics`, `presentation_slides`, `generation_jobs`, `ai_usage_logs`, `downloads`
+> **Configuración de base de datos:** Ver [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) para la guía completa de instalación: esquema SQL, storage, Google OAuth y creación del usuario admin.
 
-Primer usuario: rol `architect` por defecto. Para cambiar a `admin`:
-Supabase Dashboard → tabla `profiles` → columna `role`.
+---
+
+## Gestión de usuarios
+
+PropuestasAI usa un modelo de **acceso cerrado**: no hay registro público. Solo un administrador puede crear cuentas nuevas.
+
+### Roles disponibles
+
+| Rol | Acceso |
+|-----|--------|
+| `architect` | Crea y gestiona sus propios proyectos |
+| `admin` | Acceso total + bitácora IA + gestión de usuarios |
+
+### Cómo dar de alta un usuario (solo admin)
+
+1. Iniciar sesión con cuenta admin
+2. Ir a **Usuarios** (botón en el header superior)
+3. Ingresar email y contraseña del nuevo usuario → **+ Crear usuario**
+4. La cuenta se crea confirmada — el usuario puede iniciar sesión de inmediato
+
+El admin no puede eliminarse a sí mismo. Los usuarios con rol `admin` no tienen botón de eliminar.
+
+### Credenciales del admin inicial
+
+```
+Email:    test@propuestasai.com
+Password: Test1234!
+```
+
+> Para cambiar el rol de un usuario a `admin`: Supabase Dashboard → Table Editor → `profiles` → columna `role`.
 
 ---
 
@@ -219,25 +246,29 @@ Cada vez que se regenera un slide, el archivo anterior se **borra del bucket** a
 
 ---
 
-## Estado actual (2026-03-29)
+## Estado actual (2026-03-30)
 
 ### Implementado
 
 - [x] Auth completo con 3 roles (architect / commercial / admin)
+- [x] Acceso cerrado: solo admin puede crear cuentas — no hay registro publico
+- [x] Forzar cambio de contrasena en primer login (usuarios creados por admin)
+- [x] Header global con email, badge de rol y acciones en todas las paginas
+- [x] Gestion de usuarios `/admin/users`: crear, listar y eliminar (solo admin)
 - [x] Projects CRUD + dashboard con seccion de proyectos archivados
 - [x] Brand Identity: editor Markdown + upload logo/fondo con validacion de dimensiones
-  - Validacion de proporciones al subir (aviso si logo es vertical o fondo no es landscape)
   - Logo composited programaticamente en bottom-right de cada slide (via sharp)
-  - Tip en UI: subir logo por separado para compositing confiable
 - [x] Brief del Proyecto — captura libre del discovery en Markdown
 - [x] Storyboard de Propuesta — 7 slides, generacion IA (claude-sonnet), edicion, aprobacion iterativa
 - [x] Infografias de la Propuesta — 7 slides PNG async con IA
   - Toggle Flash / Pro / Flux por proyecto (persiste en BD)
   - Polling setInterval(3s), lightbox fullscreen, regenerar individual con comentario
   - Borra archivo anterior del bucket al regenerar (sin archivos huerfanos)
-- [x] Descarga PPTX (slides ordenados por slide_index)
+- [x] Descarga PPTX directa desde `/infographics` — marca proyecto como Completado
 - [x] Capa AI unificada: solo OpenRouter, modelos configurables en .env.local
-- [x] Bitacora de uso `/admin/ai-usage` (balance OpenRouter, rating de modelos, logs completos)
+- [x] Bitacora de uso `/admin/ai-usage`:
+  - Balance OpenRouter, rating de modelos, logs completos
+  - Badge de usuario por proyecto (quien trabaja que)
 - [x] Widget creditos IA por proyecto: tokens + costo + contadores por tipo
 - [x] Storage lifecycle completo:
   - Monitor en `/admin/ai-usage` con plan selector, barra de progreso y top 5 proyectos

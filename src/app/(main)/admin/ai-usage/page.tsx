@@ -44,6 +44,8 @@ export default async function AiUsagePage() {
       projectMap.set(key, {
         project_id: key,
         project_name: log.project_name ?? log.project_id.slice(0, 8),
+        user_id: log.project_user_id ?? null,
+        user_email: null,
         storyboard_count: 0,
         infographic_count: 0,
         revision_count: 0,
@@ -58,6 +60,22 @@ export default async function AiUsagePage() {
     if (log.task_type?.startsWith('storyboard')) entry.storyboard_count++
     if (log.task_type?.startsWith('infographic')) entry.infographic_count++
   }
+
+  // Resolver emails de owners
+  const userIds = [...new Set(
+    Array.from(projectMap.values()).map((r) => r.user_id).filter(Boolean) as string[]
+  )]
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .in('id', userIds)
+    const emailMap = new Map((profiles ?? []).map((p) => [p.id, p.email]))
+    for (const row of projectMap.values()) {
+      if (row.user_id) row.user_email = emailMap.get(row.user_id) ?? null
+    }
+  }
+
   const projectSummaries = Array.from(projectMap.values())
 
   return (

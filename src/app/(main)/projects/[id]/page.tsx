@@ -77,15 +77,6 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       locked: !storyboardApproved,
       lockedReason: 'Requiere el storyboard aprobado.',
     },
-    {
-      number: 5,
-      label: 'Descargar Propuesta PPT',
-      description: 'Empaqueta todas las infografias en un archivo PowerPoint listo para presentar.',
-      done: false,
-      href: `/projects/${id}/presentation/technical`,
-      locked: !hasInfographics,
-      lockedReason: 'Requiere tener infografias generadas.',
-    },
   ]
 
   const isArchived = project.status === 'archived'
@@ -139,7 +130,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
           <h2 className="mb-4 text-lg font-semibold text-gray-900">Propuesta</h2>
           <div className="space-y-3">
             {steps.map((step) => {
-              const isArchivedStep = isArchived && (step.number === 4 || step.number === 5)
+              const isArchivedStep = isArchived && step.number === 4
               return (
                 <div
                   key={step.number}

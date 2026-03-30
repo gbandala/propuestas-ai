@@ -62,10 +62,18 @@ export async function updatePassword(formData: FormData) {
   const supabase = await createClient()
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.updateUser({ password })
+  const { data: { user }, error } = await supabase.auth.updateUser({ password })
 
   if (error) {
     return { error: error.message }
+  }
+
+  // Limpiar flag de cambio forzado si estaba activo
+  if (user) {
+    await supabase
+      .from('profiles')
+      .update({ must_change_password: false })
+      .eq('id', user.id)
   }
 
   revalidatePath('/', 'layout')
