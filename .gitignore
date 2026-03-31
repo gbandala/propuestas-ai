@@ -74,9 +74,8 @@ tests/
 # Artefactos de compilación
 tsconfig.tsbuildinfo
 
-# Imágenes de trabajo (pruebas de generación, screenshots de referencia)
+# Screenshots de referencia local
 login-page.png
-images/
 
 # Documentación interna del agente (no necesaria en deploy)
 BUSINESS_LOGIC.md
