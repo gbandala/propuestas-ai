@@ -10,6 +10,10 @@ export default async function MainLayout({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  if (!user) {
+    redirect('/login')
+  }
+
   if (user) {
     const isGoogleUser = user.app_metadata?.provider === 'google' ||
       (user.app_metadata?.providers as string[] | undefined)?.includes('google')

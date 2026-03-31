@@ -199,3 +199,41 @@ navigate → snapshot (verificar) → click/fill → snapshot (confirmar) → sc
 ```
 
 **Para QA automatizado multi-paso:** Usar Playwright CLI (`npx playwright screenshot --output archivo.png`) que guarda a disco sin inyectar al contexto.
+
+---
+
+## Seguridad
+
+### Auditoría de seguridad completa — 2026-03-30
+
+Se realizó auditoría de seguridad completa con 5 agentes especializados (secrets, auth, OWASP, API routes, storage). Hallazgos y plan de remediación en `.claude/memory/security_audit_plan.md`.
+
+**Hallazgos críticos y sus fixes:**
+
+#### middleware.ts debe llamarse exactamente así
+**Instrucción:** El archivo de middleware de Next.js DEBE llamarse `middleware.ts` (o `middleware.js`) en la raíz o en `src/`. Cualquier otro nombre (como `proxy.ts`) es ignorado silenciosamente por Next.js — el middleware nunca corre.
+**Por qué:** Descubierto en auditoría: el archivo se llamaba `proxy.ts` con una función `proxy()`. Next.js no lo ejecutaba. Todas las protecciones de ruta dependían exclusivamente de los Server Components individuales.
+
+#### El middleware debe proteger TODAS las rutas privadas
+**Instrucción:** Al configurar `isProtectedRoute` en el middleware, incluir TODAS las rutas que requieren auth: `/dashboard`, `/projects`, `/admin`. No solo la primera que se implementó.
+**Por qué:** El error clásico es proteger solo `/dashboard` al inicio y olvidar agregar `/projects/*` y `/admin/*` cuando se crean esas secciones.
+
+#### El layout de sección privada debe redirigir si !user
+**Instrucción:** En `(main)/layout.tsx`, siempre agregar `if (!user) redirect('/login')` antes de cualquier lógica adicional. El middleware es la primera línea de defensa, pero el layout es la segunda.
+**Por qué:** El middleware puede fallar, estar mal configurado, o no cubrir algún edge case. La defensa en profundidad requiere que cada capa verifique auth independientemente.
+
+#### Nunca usar fallback hardcodeado para secrets internos
+**Instrucción:** `process.env.INTERNAL_API_SECRET ?? 'valor-default'` es un antipatrón de seguridad grave. Si la variable no está definida, el servidor debe fallar explícitamente, no usar un secreto predecible que está en el código fuente.
+**Fix correcto:** `const secret = process.env.INTERNAL_API_SECRET; if (!secret) throw new Error('INTERNAL_API_SECRET not configured');`
+
+#### Bucket de Supabase Storage debe ser privado con signed URLs
+**Instrucción:** No usar `getPublicUrl()` para archivos que contienen datos de clientes (logos, infografías, briefs, ZIPs). Usar bucket privado + `createSignedUrl()` con TTL adecuado.
+**Por qué:** Un bucket público expone todo el contenido a cualquier persona con la URL, sin expiración. Los ZIPs de archivo contienen briefs completos de clientes.
+
+#### Validar uploads con magic bytes, no solo extensión
+**Instrucción:** La extensión del nombre de archivo la controla el usuario y es trivial de falsificar. Leer los primeros bytes del buffer y verificar la firma del formato real (magic bytes).
+**Por qué:** Un SVG con `<script>` renombrado a `.png` pasa la validación por extensión. SVG especialmente peligroso — puede ejecutar JavaScript si se sirve desde un bucket público.
+
+#### SSRF: nunca hacer fetch() con URL del usuario sin whitelist
+**Instrucción:** En `/api/download-image` (y cualquier endpoint proxy), validar que la URL pertenezca a dominios de la allowlist antes de hacer `fetch(url)`.
+**Por qué:** Sin restricción, un usuario autenticado puede usar el servidor para escanear la red interna, acceder a metadata de instancias cloud (169.254.169.254), o atacar terceros.

@@ -336,4 +336,10 @@ Deploy:       Vercel
 
 ---
 
+## Seguridad
+
+PropuestasAI ha sido sometido a una auditoría de seguridad completa (2026-03-30) que cubrió: gestión de secrets y variables de entorno, autenticación y autorización, validación de inputs (OWASP Top 10), API routes y Server Actions, y gestión de storage y uploads. Los hallazgos identificados están siendo corregidos de forma sistemática por orden de severidad.
+
+---
+
 *PropuestasAI — Construido con [SaaS Factory V4](https://github.com/gbandala/saas-factory)*
