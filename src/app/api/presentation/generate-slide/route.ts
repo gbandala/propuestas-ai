@@ -4,7 +4,8 @@ import { generateImage } from '@/lib/ai-client'
 import { buildSlidePrompt, extractSlideData, parseBrand } from '@/features/technical-presentation/services/slide-prompt-builder'
 import type { AiTaskType } from '@/types/database'
 
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
+if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
 
 interface GenerateSlideRequest {
   projectId: string

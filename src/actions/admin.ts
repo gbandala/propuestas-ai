@@ -85,6 +85,9 @@ export async function getStorageDashboard(): Promise<{ data: StorageDashboardDat
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return { error: 'Acceso restringido a administradores' }
+
   const [bucketResult, projectsResult] = await Promise.all([
     supabase.storage.from('project-assets').list('projects', { limit: 1000 }),
     supabase.from('projects').select('id, name, client_name, status, created_at, updated_at, archived_at, archive_url').order('created_at', { ascending: false }),
@@ -184,6 +187,9 @@ export async function autoCleanOldProjects(): Promise<{ archived: number; freedM
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'admin') return { error: 'Acceso restringido a administradores' }
 
   // Buscar proyectos completados hace más de 30 días, sin archive_url aún
   const cutoffDate = new Date()

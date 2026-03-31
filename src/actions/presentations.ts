@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import type { PresentationType } from '@/types/database'
 
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
+if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
 
 // ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ function triggerSlideGeneration(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-internal-secret': INTERNAL_SECRET,
+      'x-internal-secret': INTERNAL_SECRET!,
       'x-user-token': accessToken,
     },
     body: JSON.stringify({ projectId, slideNumber, jobId, comments }),

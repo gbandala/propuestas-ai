@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import JSZip from 'jszip'
 
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
+if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
 
 export async function POST(req: NextRequest) {
   if (req.headers.get('x-internal-secret') !== INTERNAL_SECRET) {

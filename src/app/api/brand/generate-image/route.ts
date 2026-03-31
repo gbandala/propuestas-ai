@@ -4,7 +4,8 @@ import { generateImage } from '@/lib/ai-client'
 import type { ImageQuality } from '@/types/database'
 import { buildLogoPrompt, buildBackgroundPrompt } from '@/features/brand-identity/services/brand-prompt-builder'
 
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
+if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
 
 interface GenerateBrandImageRequest {
   projectId: string

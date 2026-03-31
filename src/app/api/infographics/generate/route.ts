@@ -10,7 +10,8 @@ import { DEFAULT_COLORS } from '@/shared/constants/brand'
 import type { StepData } from '@/features/technical-brief/types'
 import type { AiTaskType } from '@/types/database'
 
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET ?? 'propuestasai-internal'
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
+if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
 
 interface TechnicalGenerateRequest {
   projectId: string
