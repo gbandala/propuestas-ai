@@ -63,3 +63,26 @@ Thumbs.db
 # Supabase
 supabase/.branches
 supabase/.temp
+
+# QA y testing local
+.playwright-mcp/
+.qa-reports/
+test-results/
+tests/screenshots/
+tests/
+
+# Artefactos de compilación
+tsconfig.tsbuildinfo
+
+# Imágenes de trabajo (pruebas de generación, screenshots de referencia)
+login-page.png
+images/
+
+# Documentación interna del agente (no necesaria en deploy)
+BUSINESS_LOGIC.md
+CLAUDE.md
+GEMINI.md
+TESTING.md
+pendientes.md
+playwright.config.ts
+.claude/
