@@ -285,18 +285,64 @@ PropuestasAI usa **acceso cerrado** — no hay registro público.
 
 ### Deploy en Vercel
 
+#### Plan recomendado
+
+Usar **Vercel Pro** ($20/mes). El plan Hobby tiene un límite de **10 segundos** por función serverless — la generación de imágenes con Gemini tarda 15–60s y falla silenciosamente con ese límite.
+
+#### 1. Importar el repositorio
+
+En [vercel.com/dashboard](https://vercel.com/dashboard) → **Add New… → Project** → importar `propuestas-ai` desde GitHub.
+
+#### 2. Variables de entorno
+
+Antes del primer deploy, expandir **Environment Variables** y agregar (o usar **Import .env** apuntando a `.env.local`):
+
+| Variable | Valor |
+|----------|-------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL de tu proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key de Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | Publishable key de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key de Supabase |
+| `OPENROUTER_API_KEY` | Tu API key de OpenRouter |
+| `INTERNAL_API_SECRET` | Secret aleatorio seguro (mín. 32 chars) |
+| `IMAGE_MODEL_FLASH` | `google/gemini-2.5-flash-image` |
+| `IMAGE_MODEL_PRO` | `google/gemini-3.1-flash-image-preview` |
+| `TEXT_MODEL` | `anthropic/claude-sonnet-4-6` |
+| `NEXT_PUBLIC_SITE_URL` | `https://tu-dominio.com` ← **crítico** |
+
+> `NEXT_PUBLIC_SITE_URL` es la variable más importante: las Server Actions la usan para construir las URLs internas de generación. Si queda como `localhost`, toda la generación falla en producción.
+
+#### 3. Timeout para funciones de generación IA
+
+El proyecto incluye `vercel.json` que configura `maxDuration: 60` para las 3 rutas de generación. No requiere configuración adicional.
+
+#### 4. Dominio custom (subdominio)
+
+En Vercel → **Settings → Domains** → agregar `propuestas.tu-dominio.com`.
+
+Vercel mostrará un registro CNAME. Agregarlo en el panel DNS de tu proveedor:
+
+| Tipo | Nombre | Valor |
+|------|--------|-------|
+| CNAME | `propuestas` | `xxxxxx.vercel-dns-016.com` |
+
+#### 5. Configurar Supabase para producción
+
+En [supabase.com](https://supabase.com) → tu proyecto → **Authentication → URL Configuration**:
+
+```
+Site URL:      https://propuestas.tu-dominio.com
+Redirect URLs: https://propuestas.tu-dominio.com/**
+```
+
+Sin este paso, Google OAuth y los emails de reset de contraseña no funcionan en producción.
+
+#### 6. Deploy automático
+
+Cada `git push` a `main` dispara un deploy automático en Vercel. Para deploy manual:
+
 ```bash
-vercel
-```
-
-Variables requeridas en el dashboard de Vercel:
-
-```
-NEXT_PUBLIC_SUPABASE_URL      NEXT_PUBLIC_SUPABASE_ANON_KEY
-OPENROUTER_API_KEY            IMAGE_MODEL_FLASH
-IMAGE_MODEL_PRO               IMAGE_MODEL_FLUX
-TEXT_MODEL                    NEXT_PUBLIC_SITE_URL
-INTERNAL_API_SECRET
+npx vercel --prod
 ```
 
 ### Comandos de Desarrollo
