@@ -10,6 +10,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'url requerida' }, { status: 400 })
   }
 
+  // Allowlist: solo URLs de Supabase Storage (previene SSRF)
+  const ALLOWED_URL = /^https:\/\/[a-z0-9-]+\.supabase\.co\//
+  if (!ALLOWED_URL.test(url)) {
+    return NextResponse.json({ error: 'URL no permitida' }, { status: 400 })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })

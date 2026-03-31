@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { PresentationType } from '@/types/database'
+import { checkGenerationRateLimit } from '@/lib/rate-limit'
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
 if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
@@ -86,6 +87,9 @@ export async function generatePresentation(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
+
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token ?? ''
 
@@ -154,6 +158,9 @@ export async function retryPresentationSlide(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
 
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token ?? ''

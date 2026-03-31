@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { checkGenerationRateLimit } from '@/lib/rate-limit'
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET
 if (!INTERNAL_SECRET) throw new Error('INTERNAL_API_SECRET environment variable is required')
@@ -42,6 +43,9 @@ export async function generateTechnicalInfographics(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
 
   // Obtener access token para pasarlo al API route (llamada server-to-server no lleva cookies)
   const { data: { session } } = await supabase.auth.getSession()
@@ -169,6 +173,9 @@ export async function retryInfographicVariant(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
+
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token ?? ''
 
@@ -215,6 +222,9 @@ export async function generateProposalInfographics(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
 
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token ?? ''
@@ -340,6 +350,9 @@ export async function retryProposalSlide(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
 
   const { data: { session } } = await supabase.auth.getSession()
   const accessToken = session?.access_token ?? ''

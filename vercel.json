@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "src/app/api/infographics/generate/route.ts": { "maxDuration": 60 },
+    "src/app/api/presentation/generate-slide/route.ts": { "maxDuration": 60 },
+    "src/app/api/brand/generate-image/route.ts": { "maxDuration": 60 }
+  }
+}

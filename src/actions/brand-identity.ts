@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { BRAND_IDENTITY_TEMPLATE } from '@/features/brand-identity/types'
 import { removeGrayBackground } from '@/lib/image-utils'
+import { checkGenerationRateLimit } from '@/lib/rate-limit'
 
 export interface BrandVariant {
   variantIndex: 1 | 2 | 3
@@ -38,6 +39,9 @@ export async function createBrandGenerationJobs(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
+
+  const { allowed } = await checkGenerationRateLimit(supabase)
+  if (!allowed) return { error: 'Límite de generaciones alcanzado (30/hora). Intenta más tarde.' }
 
   const taskType = `brand_${imageType}` as 'infographic_v1'
   const jobs = await Promise.all(
