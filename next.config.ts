@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next'
 
+const isDev = process.env.NODE_ENV === 'development'
+
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -13,7 +15,10 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval requerido por Next.js dev
+      // unsafe-eval solo en desarrollo (requerido por Next.js HMR/Turbopack)
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
       "font-src 'self'",
@@ -24,9 +29,9 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  // Activa el MCP server en /_next/mcp (Next.js 16+)
   experimental: {
-    mcpServer: true,
+    // MCP server solo en desarrollo — en producción queda deshabilitado
+    mcpServer: isDev,
     serverActions: {
       bodySizeLimit: '5mb',
     },

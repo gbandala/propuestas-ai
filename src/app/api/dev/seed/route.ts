@@ -1,17 +1,24 @@
 /**
  * DEV ONLY — endpoint para crear usuario de prueba
- * POST /api/dev/seed → crea test@propuestasai.dev / Test1234!
+ * POST /api/dev/seed → crea DEV_SEED_EMAIL / DEV_SEED_PASSWORD (desde .env.local)
  * Solo funciona si NODE_ENV !== 'production'
  */
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const TEST_EMAIL = 'test@propuestasai.dev'
-const TEST_PASSWORD = 'Test1234!'
+const TEST_EMAIL = process.env.DEV_SEED_EMAIL ?? 'test@propuestasai.dev'
+const TEST_PASSWORD = process.env.DEV_SEED_PASSWORD
 
 export async function POST() {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
+  }
+
+  if (!TEST_PASSWORD) {
+    return NextResponse.json(
+      { error: 'DEV_SEED_PASSWORD not set in .env.local' },
+      { status: 500 }
+    )
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -59,17 +66,12 @@ export async function POST() {
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 
-  return NextResponse.json({
-    ok: true,
-    email: TEST_EMAIL,
-    password: TEST_PASSWORD,
-    userId,
-  })
+  return NextResponse.json({ ok: true, email: TEST_EMAIL, userId })
 }
 
 export async function GET() {
   if (process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
   }
-  return NextResponse.json({ email: TEST_EMAIL, password: TEST_PASSWORD })
+  return NextResponse.json({ email: TEST_EMAIL })
 }

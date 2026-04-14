@@ -16,6 +16,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'URL no permitida' }, { status: 400 })
   }
 
+  // Sanitizar filename para prevenir header injection (CRLF, comillas)
+  const safeFilename = filename.replace(/[^\w\s.-]/g, '_').slice(0, 100) || 'imagen.png'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
@@ -31,7 +34,7 @@ export async function GET(req: NextRequest) {
     status: 200,
     headers: {
       'Content-Type': 'image/png',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': `attachment; filename="${safeFilename}"`,
       'Content-Length': buffer.byteLength.toString(),
     },
   })

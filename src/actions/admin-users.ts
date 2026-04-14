@@ -1,8 +1,17 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+
+const CreateUserSchema = z.object({
+  email: z.string().email('Email inválido').max(254),
+  password: z
+    .string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(128),
+})
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -53,15 +62,15 @@ export async function createUser(formData: FormData): Promise<{ success: true } 
     await requireAdmin()
     const admin = createAdminClient()
 
-    const email = formData.get('email') as string
-    const password = formData.get('password') as string
-
-    if (!email || !password) return { error: 'Email y contraseña requeridos' }
-    if (password.length < 6) return { error: 'La contraseña debe tener al menos 6 caracteres' }
+    const parsed = CreateUserSchema.safeParse({
+      email: formData.get('email'),
+      password: formData.get('password'),
+    })
+    if (!parsed.success) return { error: parsed.error.issues[0].message }
 
     const { data: created, error } = await admin.auth.admin.createUser({
-      email,
-      password,
+      email: parsed.data.email,
+      password: parsed.data.password,
       email_confirm: true,
     })
 
