@@ -76,11 +76,12 @@ tsconfig.tsbuildinfo
 # Screenshots de referencia local
 login-page.png
 
-# Documentación interna del agente (no necesaria en deploy)
+# Documentación interna (no necesaria en deploy)
 BUSINESS_LOGIC.md
 CLAUDE.md
 GEMINI.md
 TESTING.md
+SECURITY_REPORT.md
 pendientes.md
 playwright.config.ts
 .claude/
