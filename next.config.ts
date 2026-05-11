@@ -29,6 +29,7 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   experimental: {
     // MCP server solo en desarrollo — en producción queda deshabilitado
     mcpServer: isDev,
